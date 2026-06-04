@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "Kalendarz",
+    "slug": "calendar-scanner",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#4F6AF5"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#4F6AF5"
+      },
+      "package": "com.k4th3rin4.calendarscanner",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "RECEIVE_BOOT_COMPLETED",
+        "SCHEDULE_EXACT_ALARM",
+        "USE_EXACT_ALARM",
+        "VIBRATE",
+        "POST_NOTIFICATIONS"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#4F6AF5"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Aplikacja potrzebuje dost\u0119pu do zdj\u0119\u0107 aby zeskanowa\u0107 kalendarz.",
+          "cameraPermission": "Aplikacja potrzebuje dost\u0119pu do aparatu aby zeskanowa\u0107 kalendarz."
+        }
+      ]
+    ]
+  }
+}
