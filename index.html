@@ -639,18 +639,25 @@ function deletePerson(id){
 
 // ── API KEY ───────────────────────────────────────────────
 function refreshKeyUI(){
-  const prov=S.aiProv();
-  const k=S.keyFor?S.keyFor(prov):S.key();
-  const inp=document.getElementById('ki'),st=document.getElementById('kst');
-  if(inp)inp.value=k;
-  if(st){st.textContent=k?'✓ Klucz zapisany':'⚠ Brak klucza — wklej klucz API';st.className='kst '+(k?'ok':'no');}
-  const p=S.aiProv();
-  document.querySelectorAll('.ai-opt').forEach(el=>el.classList.remove('on'));
-  document.getElementById('opt-'+p)?.classList.add('on');
-  const r=document.querySelector(`input[value="${p}"]`);if(r)r.checked=true;
+  const gk=localStorage.getItem('gemini_key')||'';
+  const ck=localStorage.getItem('claude_key')||localStorage.getItem('ant_key')||'';
+function saveKeyFor(prov){
+  const inp=document.getElementById(prov==='gemini'?'ki-gemini':'ki-claude');
+  const v=inp?inp.value.trim():'';
+  if(!v){toast('Wklej klucz');return;}
+  if(prov==='gemini') localStorage.setItem('gemini_key',v);
+  else{localStorage.setItem('claude_key',v);localStorage.setItem('ant_key',v);}
+  refreshKeyUI();
+  toast(prov==='gemini'?'Klucz Gemini zapisany ✓':'Klucz Claude zapisany ✓');
 }
-function saveKey(){const v=document.getElementById('ki').value.trim();if(!v){toast('Wklej klucz');return;}S.saveKey(v);refreshKeyUI();toast('Klucz zapisany ✓');}
-function pickAI(v){S.setAIProv(v);refreshKeyUI();toast(v==='gemini'?'Przełączono na Gemini Flash ✓':'Przełączono na Claude ✓');}
+function pickAI(v){S.setAIProv(v);}
+  const ig=document.getElementById('ki-gemini');if(ig)ig.value=gk;
+  const ic=document.getElementById('ki-claude');if(ic)ic.value=ck;
+  const sg=document.getElementById('kst-gemini');
+  if(sg){sg.textContent=gk?'✓ Klucz Gemini zapisany':'⚠ Brak klucza Gemini';sg.className='kst '+(gk?'ok':'no');}
+  const sc=document.getElementById('kst-claude');
+  if(sc){sc.textContent=ck?'✓ Klucz Claude zapisany':'⚠ Brak klucza Claude';sc.className='kst '+(ck?'ok':'no');}
+}
 
 // ── HOLIDAYS ──────────────────────────────────────────────
 function easter(y){const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mo=Math.floor((h+l-7*m+114)/31),day=((h+l-7*m+114)%31)+1;return new Date(y,mo-1,day);}
