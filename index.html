@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Mój Kalendarz</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4F6AF5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Kalendarz">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --blue:#4F6AF5;--green:#22C55E;--amber:#F59E0B;--red:#EF4444;--purple:#8B5CF6;
+  --bg:#F0F2FF;--card:#fff;--text:#1a1a2e;--muted:#666;--border:#e8e8f0;
+  --safe-top:env(safe-area-inset-top,0px);--safe-bot:env(safe-area-inset-bottom,0px)
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);max-width:480px;margin:0 auto;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+/* ─── TOP NAV ─── */
+#topbar{background:var(--blue);padding:calc(12px + var(--safe-top)) 16px 12px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+#topbar h1{color:#fff;font-size:18px;font-weight:700}
+#topbar-btns{display:flex;gap:8px}
+.topbtn{background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer}
+/* ─── VIEWS ─── */
+#views{flex:1;overflow:hidden;position:relative}
+.view{position:absolute;inset:0;overflow-y:auto;padding-bottom:calc(70px + var(--safe-bot));display:none}
+.view.active{display:block}
+/* ─── BOTTOM NAV ─── */
+#nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;border-top:1px solid var(--border);display:flex;padding-bottom:var(--safe-bot);z-index:100}
+.navbtn{flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 4px 8px;background:none;border:none;cursor:pointer;font-size:10px;font-weight:600;color:var(--muted);gap:3px;transition:.15s}
+.navbtn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.navbtn.active{color:var(--blue)}
+/* ─── CARDS ─── */
+.card{background:var(--card);border-radius:14px;padding:16px;margin:12px 14px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.card-sm{background:var(--card);border-radius:10px;padding:12px 14px;margin:6px 14px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+/* ─── CALENDAR ─── */
+#cal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 8px;background:#fff;border-bottom:1px solid var(--border)}
+#cal-header h2{font-size:17px;font-weight:700;text-transform:capitalize}
+.nav-arrow{background:none;border:none;font-size:22px;cursor:pointer;color:var(--blue);padding:4px 10px;line-height:1}
+#holiday-toggle{display:flex;align-items:center;gap:6px;padding:8px 16px;background:#fff;border-bottom:1px solid var(--border);font-size:13px;cursor:pointer;color:var(--muted)}
+#holiday-toggle span{width:10px;height:10px;border-radius:50%;background:var(--green);display:inline-block}
+.weekdays{display:grid;grid-template-columns:repeat(7,1fr);background:#fff;padding:4px 8px}
+.weekdays div{text-align:center;font-size:11px;font-weight:700;color:var(--muted);padding:4px 0}
+.weekdays div:nth-child(6),.weekdays div:nth-child(7){color:var(--red)}
+#cal-grid{display:grid;grid-template-columns:repeat(7,1fr);background:#fff;padding:0 8px 8px;border-bottom:1px solid var(--border)}
+.cal-day{aspect-ratio:.85;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:4px 2px;cursor:pointer;border-radius:10px;transition:.1s}
+.cal-day:active{background:#f0f2ff}
+.cal-day .dn{font-size:13px;font-weight:500;line-height:1.6}
+.cal-day.today .dn{color:var(--blue);font-weight:700}
+.cal-day.selected{background:var(--blue)}
+.cal-day.selected .dn{color:#fff;font-weight:700}
+.cal-day.weekend:not(.selected) .dn,.cal-day.holiday-day:not(.selected) .dn{color:var(--red)}
+.dots{display:flex;gap:2px;flex-wrap:wrap;justify-content:center;max-width:28px}
+.dot{width:4px;height:4px;border-radius:50%}
+.day-detail{padding:0 14px}
+.day-title{font-size:14px;font-weight:700;text-transform:capitalize;color:var(--text);padding:12px 0 8px;display:flex;justify-content:space-between;align-items:center}
+.add-btn-sm{background:var(--blue);color:#fff;border:none;border-radius:20px;padding:6px 16px;font-size:13px;font-weight:600;cursor:pointer}
+.event-card{background:var(--card);border-radius:10px;padding:11px 13px;margin-bottom:8px;border-left:4px solid var(--blue);box-shadow:0 1px 3px rgba(0,0,0,.05);display:flex;align-items:center;gap:10px}
+.event-card .ev-body{flex:1}
+.event-card .ev-title{font-size:14px;font-weight:600}
+.event-card .ev-meta{font-size:12px;color:var(--muted);margin-top:2px}
+.event-card .ev-badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;margin-top:4px;display:inline-block}
+.ev-actions{display:flex;flex-direction:column;gap:4px}
+.ev-icon-btn{background:none;border:none;cursor:pointer;padding:4px;border-radius:6px;line-height:0}
+.hint{font-size:11px;color:#ccc;text-align:center;padding:8px 0}
+/* ─── SCAN VIEW ─── */
+.scan-hero{background:var(--blue);color:#fff;border-radius:16px;padding:24px;margin:14px;text-align:center}
+.scan-hero svg{width:48px;height:48px;stroke:#fff;fill:none;stroke-width:1.5}
+.scan-hero h2{font-size:19px;font-weight:700;margin:10px 0 6px}
+.scan-hero p{font-size:13px;opacity:.85;line-height:1.5}
+.btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 14px 14px}
+.scan-btn{border-radius:12px;padding:14px;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:13px;font-weight:600;cursor:pointer;border:2px solid transparent}
+.scan-btn svg{width:26px;height:26px;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.scan-btn.primary{background:var(--blue);color:#fff;border-color:var(--blue)}
+.scan-btn.primary svg{stroke:#fff}
+.scan-btn.secondary{background:#fff;color:var(--blue);border-color:var(--blue)}
+.scan-btn.secondary svg{stroke:var(--blue)}
+.scan-btn.google{background:#fff;color:#EA4335;border-color:#EA4335}
+.scan-btn.google svg{stroke:#EA4335}
+.scan-btn.outlook{background:#fff;color:#0078D4;border-color:#0078D4}
+.scan-btn.outlook svg{stroke:#0078D4}
+#image-preview{margin:0 14px 14px;position:relative}
+#preview-img{width:100%;border-radius:12px;max-height:240px;object-fit:contain;background:#eee}
+#analyze-btn{width:100%;margin-top:10px;background:var(--blue);color:#fff;border:none;border-radius:12px;padding:14px;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+#analyze-btn:disabled{opacity:.6}
+#results-section{padding:0 14px}
+#results-section h3{font-size:17px;font-weight:700;margin-bottom:10px}
+.result-card{background:#fff;border-radius:12px;padding:13px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.result-card .rc-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+.type-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px}
+.rc-date{font-size:13px;color:var(--muted)}
+.rc-title{font-size:15px;font-weight:500;margin-bottom:6px}
+.rc-actions{display:flex;gap:8px}
+.btn-edit{background:#EEF0FF;color:var(--blue);border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer}
+.btn-del{background:#FEE;color:var(--red);border:none;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer}
+#save-all-btn{width:100%;background:var(--green);color:#fff;border:none;border-radius:12px;padding:15px;font-size:16px;font-weight:700;cursor:pointer;margin:10px 0 20px;display:flex;align-items:center;justify-content:center;gap:8px}
+/* ─── AGENDA ─── */
+.filter-bar{display:flex;gap:8px;padding:10px 14px;background:#fff;border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none}
+.filter-bar::-webkit-scrollbar{display:none}
+.filter-chip{background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;white-space:nowrap;flex-shrink:0}
+.filter-chip.active{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
+.month-group{padding:12px 14px 4px;font-size:13px;font-weight:700;color:var(--blue);text-transform:capitalize}
+.agenda-card{background:#fff;border-radius:10px;padding:12px 14px;margin:0 14px 8px;border-left:4px solid;box-shadow:0 1px 3px rgba(0,0,0,.05);display:flex;align-items:center;gap:10px}
+.ag-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ag-icon svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round}
+.ag-body{flex:1}
+.ag-title{font-size:14px;font-weight:600}
+.ag-meta{font-size:12px;color:var(--muted);margin-top:2px}
+.ag-del{background:none;border:none;cursor:pointer;padding:6px;color:#ccc}
+.ag-del svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round}
+.empty-msg{text-align:center;color:#bbb;padding:40px 20px;font-size:15px}
+/* ─── SETTINGS ─── */
+.settings-hero{background:var(--blue);border-radius:16px;padding:24px;margin:14px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.settings-hero .big-num{font-size:52px;font-weight:800;color:#fff;line-height:1}
+.settings-hero p{color:rgba(255,255,255,.8);font-size:16px}
+.settings-section{margin:0 14px 16px}
+.settings-section h3{font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;padding:0 4px}
+.settings-card{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)}
+.settings-row:last-child{border-bottom:none}
+.settings-row .left{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:500}
+.settings-row .right{font-size:14px;color:var(--muted)}
+.toggle{width:44px;height:24px;background:#ddd;border-radius:12px;position:relative;cursor:pointer;transition:.2s;flex-shrink:0}
+.toggle.on{background:var(--blue)}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.toggle.on::after{left:22px}
+.sub-section{padding:12px 16px}
+.sub-label{font-size:13px;color:var(--muted);font-weight:500;margin-bottom:8px}
+.chip-row{display:flex;flex-wrap:wrap;gap:8px}
+.reminder-chip{background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:500;cursor:pointer;color:var(--muted)}
+.reminder-chip.active{background:var(--red);border-color:var(--red);color:#fff;font-weight:600}
+.danger-btn{color:var(--red)!important}
+/* ─── MODAL ─── */
+#modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:flex-end;justify-content:center}
+#modal-overlay.hidden{display:none}
+#modal-sheet{background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:92vh;overflow-y:auto;padding:20px 18px calc(20px + var(--safe-bot))}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.modal-title{font-size:19px;font-weight:700}
+.modal-close{background:none;border:none;font-size:26px;cursor:pointer;color:var(--muted);line-height:1}
+.form-label{font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px;margin-top:14px;display:block}
+.form-input{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:11px 13px;font-size:15px;background:#F8F9FF;outline:none;font-family:inherit}
+.form-input:focus{border-color:var(--blue)}
+.row2{display:grid;grid-template-columns:1fr 90px;gap:10px}
+.form-select{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:11px 13px;font-size:15px;background:#F8F9FF;outline:none;font-family:inherit;appearance:none;cursor:pointer}
+.chip-grid{display:flex;flex-wrap:wrap;gap:8px}
+.form-chip{background:#F8F9FF;border:1.5px solid var(--border);border-radius:20px;padding:6px 13px;font-size:13px;font-weight:500;cursor:pointer;color:#555}
+.form-chip.active{background:var(--blue);border-color:var(--blue);color:#fff}
+.form-chip.red.active{background:var(--red);border-color:var(--red)}
+.form-textarea{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:11px 13px;font-size:15px;background:#F8F9FF;min-height:70px;resize:none;outline:none;font-family:inherit}
+.form-textarea:focus{border-color:var(--blue)}
+.modal-save{width:100%;background:var(--blue);color:#fff;border:none;border-radius:12px;padding:15px;font-size:16px;font-weight:700;cursor:pointer;margin-top:20px;display:flex;align-items:center;justify-content:center;gap:8px}
+/* ─── TOAST ─── */
+#toast{position:fixed;bottom:calc(80px + var(--safe-bot));left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;padding:10px 20px;border-radius:20px;font-size:14px;font-weight:500;z-index:300;opacity:0;transition:.3s;pointer-events:none;white-space:nowrap}
+#toast.show{opacity:1}
+/* ─── LOADER ─── */
+.spinner{display:inline-block;width:18px;height:18px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <h1 id="topbar-title">📅 Mój Kalendarz</h1>
+  <div id="topbar-btns"></div>
+</div>
+
+<!-- VIEWS -->
+<div id="views">
+
+  <!-- SCAN VIEW -->
+  <div class="view active" id="view-scan">
+    <div class="scan-hero">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg>
+      <h2>Skanuj kalendarz</h2>
+      <p>Zrób zdjęcie lub wgraj screenshot z dowolnego kalendarza — AI odczyta wszystkie wpisy</p>
+    </div>
+    <div class="btn-grid">
+      <button class="scan-btn primary" onclick="pickImage('camera')">
+        <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Aparat
+      </button>
+      <button class="scan-btn secondary" onclick="pickImage('gallery')">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        Galeria / Plik
+      </button>
+      <button class="scan-btn google" onclick="showGoogleInfo()">
+        <svg viewBox="0 0 24 24"><path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/><path d="M12 8v4l3 3"/></svg>
+        Google Cal
+      </button>
+      <button class="scan-btn outlook" onclick="showOutlookInfo()">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Outlook
+      </button>
+    </div>
+    <div id="image-preview" style="display:none">
+      <img id="preview-img" alt="Podgląd">
+      <button id="analyze-btn" onclick="analyzeImage()">
+        <svg style="width:20px;height:20px;stroke:#fff;fill:none;stroke-width:1.8" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        Analizuj z AI
+      </button>
+    </div>
+    <div id="results-section" style="display:none">
+      <h3 id="results-title"></h3>
+      <div id="results-list"></div>
+      <button id="save-all-btn" onclick="saveAllResults()">
+        ✅ Zapisz wszystkie do kalendarza
+      </button>
+    </div>
+  </div>
+
+  <!-- CALENDAR VIEW -->
+  <div class="view" id="view-cal">
+    <div id="cal-header">
+      <button class="nav-arrow" onclick="changeMonth(-1)">‹</button>
+      <h2 id="month-label"></h2>
+      <button class="nav-arrow" onclick="changeMonth(1)">›</button>
+    </div>
+    <div id="holiday-toggle" onclick="toggleHolidays()">
+      <span></span> Polskie święta
+      <span id="holiday-eye" style="margin-left:auto;font-size:14px">👁</span>
+    </div>
+    <div class="weekdays">
+      <div>Pn</div><div>Wt</div><div>Śr</div><div>Cz</div><div>Pt</div>
+      <div style="color:var(--red)">So</div><div style="color:var(--red)">Nd</div>
+    </div>
+    <div id="cal-grid"></div>
+    <div class="day-detail">
+      <div class="day-title">
+        <span id="day-label"></span>
+        <button class="add-btn-sm" onclick="openAddModal()">+ Dodaj</button>
+      </div>
+      <div id="day-events"></div>
+      <div class="hint">Przesuń w lewo na wydarzeniu aby je usunąć</div>
+    </div>
+  </div>
+
+  <!-- AGENDA VIEW -->
+  <div class="view" id="view-agenda">
+    <div class="filter-bar" id="filter-bar"></div>
+    <div id="agenda-list"></div>
+  </div>
+
+  <!-- SETTINGS VIEW -->
+  <div class="view" id="view-settings">
+    <div class="settings-hero">
+      <div class="big-num" id="event-count">0</div>
+      <p>wpisów w kalendarzu</p>
+    </div>
+    <div class="settings-section">
+      <h3>Wyświetlanie</h3>
+      <div class="settings-card">
+        <div class="settings-row">
+          <div class="left">🇵🇱 Polskie święta</div>
+          <div class="toggle on" id="toggle-holidays" onclick="toggleSettingHolidays()"></div>
+        </div>
+      </div>
+    </div>
+    <div class="settings-section">
+      <h3>Powiadomienia</h3>
+      <div class="settings-card">
+        <div class="settings-row">
+          <div class="left">🔔 Włącz powiadomienia</div>
+          <div class="toggle on" id="toggle-notif" onclick="toggleSettingNotif()"></div>
+        </div>
+        <div class="sub-section">
+          <div class="sub-label">Domyślne przypomnienie dla nowych wpisów</div>
+          <div class="chip-row" id="default-reminders-chips"></div>
+        </div>
+      </div>
+    </div>
+    <div class="settings-section">
+      <h3>Dane</h3>
+      <div class="settings-card">
+        <div class="settings-row" style="cursor:pointer" onclick="clearAll()">
+          <div class="left danger-btn">🗑 Usuń wszystkie wpisy</div>
+          <div class="right" style="color:var(--red)">›</div>
+        </div>
+      </div>
+    </div>
+    <div class="settings-section">
+      <h3>Informacje</h3>
+      <div class="settings-card">
+        <div class="settings-row"><div class="left">📱 Wersja</div><div class="right">2.0.0</div></div>
+        <div class="settings-row"><div class="left">💙 Stworzona z AI</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav id="nav">
+  <button class="navbtn active" data-view="scan" onclick="switchView('scan')">
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg>
+    Skanuj
+  </button>
+  <button class="navbtn" data-view="cal" onclick="switchView('cal')">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    Kalendarz
+  </button>
+  <button class="navbtn" data-view="agenda" onclick="switchView('agenda')">
+    <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1" fill="currentColor"/><circle cx="3" cy="12" r="1" fill="currentColor"/><circle cx="3" cy="18" r="1" fill="currentColor"/></svg>
+    Agenda
+  </button>
+  <button class="navbtn" data-view="settings" onclick="switchView('settings')">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    Ustawienia
+  </button>
+</nav>
+
+<!-- EVENT MODAL -->
+<div id="modal-overlay" class="hidden" onclick="handleOverlayClick(event)">
+  <div id="modal-sheet">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">Nowy wpis</span>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <label class="form-label">Tytuł *</label>
+    <input class="form-input" id="f-title" placeholder="Nazwa zadania...">
+    <div class="row2">
+      <div>
+        <label class="form-label">Data</label>
+        <input class="form-input" id="f-date" placeholder="2025-06-15" type="date">
+      </div>
+      <div>
+        <label class="form-label">Godzina</label>
+        <input class="form-input" id="f-time" placeholder="09:00" type="time" value="09:00">
+      </div>
+    </div>
+    <label class="form-label">Typ</label>
+    <div class="chip-grid" id="type-chips"></div>
+    <label class="form-label">Powtarzanie</label>
+    <select class="form-select" id="f-recur" onchange="toggleUntil()">
+      <option value="none">Nie powtarza się</option>
+      <option value="daily">Codziennie</option>
+      <option value="weekly">Co tydzień</option>
+      <option value="monthly">Co miesiąc</option>
+      <option value="yearly">Co rok</option>
+    </select>
+    <div id="recur-until-row" style="display:none">
+      <label class="form-label">Powtarzaj do (opcjonalnie)</label>
+      <input class="form-input" id="f-recur-until" type="date">
+    </div>
+    <label class="form-label">Powiadomienia</label>
+    <div class="chip-grid" id="reminder-chips"></div>
+    <label class="form-label">Notatki</label>
+    <textarea class="form-textarea" id="f-notes" placeholder="Opcjonalne notatki..."></textarea>
+    <button class="modal-save" onclick="saveModal()">✓ Zapisz</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// CONFIG — wstaw swój klucz Anthropic
+const ANTHROPIC_KEY = 'ANTHROPIC_API_KEY_PLACEHOLDER';
+// ═══════════════════════════════════════════════════════════
+
+const TYPE_COLOR = {task:'#4F6AF5',holiday:'#22C55E',work:'#F59E0B',reminder:'#EF4444',other:'#8B5CF6',publicHoliday:'#22C55E'};
+const TYPE_LABEL = {task:'Zadanie',holiday:'Urlop',work:'Praca',reminder:'Przypomnienie',other:'Inne'};
+const TYPE_EMOJI = {task:'✅',holiday:'🏖️',work:'💼',reminder:'🔔',other:'📌'};
+const RECUR_LABELS = {none:'Nie powtarza się',daily:'Codziennie',weekly:'Co tydzień',monthly:'Co miesiąc',yearly:'Co rok'};
+const REMINDER_OPTIONS = [
+  {key:'10min',label:'10 min'},
+  {key:'30min',label:'30 min'},
+  {key:'1h',  label:'1 godz'},
+  {key:'2h',  label:'2 godz'},
+  {key:'1day',label:'1 dzień'},
+  {key:'2days',label:'2 dni'},
+  {key:'1week',label:'Tydzień'},
+];
+
+// ── Storage ────────────────────────────────────────────────
+const DB = {
+  events(){try{return JSON.parse(localStorage.getItem('cal_events')||'[]')}catch{return[]}},
+  save(e){localStorage.setItem('cal_events',JSON.stringify(e))},
+  settings(){try{return JSON.parse(localStorage.getItem('cal_settings')||'{}')}catch{return{}}},
+  saveSetting(k,v){const s=this.settings();s[k]=v;localStorage.setItem('cal_settings',JSON.stringify(s))},
+};
+
+// ── Polish holidays ────────────────────────────────────────
+function easter(y){
+  const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,
+        f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),
+        h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,
+        l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),
+        month=Math.floor((h+l-7*m+114)/31),day=((h+l-7*m+114)%31)+1;
+  return new Date(y,month-1,day);
+}
+function getHolidays(year){
+  const H=[];
+  const add=(m,d,n)=>{H.push({date:`${year}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`,name:n})};
+  add(1,1,'Nowy Rok');add(1,6,'Trzech Króli');add(5,1,'Święto Pracy');
+  add(5,3,'Święto Konstytucji 3 Maja');add(8,15,'Wniebowzięcie NMP');
+  add(11,1,'Wszystkich Świętych');add(11,11,'Święto Niepodległości');
+  add(12,25,'Boże Narodzenie');add(12,26,'Drugi dzień Bożego Narodzenia');
+  const e=easter(year);
+  const addD=(base,days,name)=>{const d=new Date(base);d.setDate(d.getDate()+days);H.push({date:d.toISOString().substring(0,10),name})};
+  H.push({date:e.toISOString().substring(0,10),name:'Wielka Niedziela'});
+  addD(e,1,'Poniedziałek Wielkanocny');addD(e,49,'Zielone Świątki');addD(e,60,'Boże Ciało');
+  return H;
+}
+
+// ── Recurrence ─────────────────────────────────────────────
+function expandEvent(ev, rangeStart, rangeEnd){
+  if(!ev.recurrence) return [ev];
+  const results=[];
+  let cur=new Date(ev.date+'T00:00:00');
+  const end=rangeEnd?new Date(rangeEnd+'T00:00:00'):new Date(new Date().getFullYear()+2,11,31);
+  const until=ev.recurrence.until?new Date(ev.recurrence.until+'T00:00:00'):end;
+  let count=0;
+  while(cur<=until && cur<=end && count<500){
+    const ds=cur.toISOString().substring(0,10);
+    if(!rangeStart||ds>=rangeStart) results.push({...ev,date:ds,id:`${ev.id}_${ds}`,isOccurrence:true,originalId:ev.id});
+    count++;
+    const n=new Date(cur);
+    if(ev.recurrence.type==='daily') n.setDate(n.getDate()+1);
+    else if(ev.recurrence.type==='weekly') n.setDate(n.getDate()+7);
+    else if(ev.recurrence.type==='monthly') n.setMonth(n.getMonth()+1);
+    else if(ev.recurrence.type==='yearly') n.setFullYear(n.getFullYear()+1);
+    else break;
+    cur=n;
+  }
+  return results;
+}
+
+// ── Notifications ──────────────────────────────────────────
+async function requestNotifPerm(){
+  if(!('Notification' in window)) return false;
+  if(Notification.permission==='granted') return true;
+  const p=await Notification.requestPermission();
+  return p==='granted';
+}
+function scheduleNotifications(ev){
+  const settings=DB.settings();
+  if(settings.notifEnabled===false) return;
+  if(!ev.date||ev.date.includes('X')) return;
+  const [h,m]=(ev.time||'09:00').split(':').map(Number);
+  const evDate=new Date(ev.date+'T00:00:00');
+  evDate.setHours(h,m,0,0);
+  const reminders=ev.reminders||['30min'];
+  const offsets={'10min':10,'30min':30,'1h':60,'2h':120,'1day':1440,'2days':2880,'1week':10080};
+  reminders.forEach(r=>{
+    const mins=offsets[r]||30;
+    const triggerMs=evDate.getTime()-(mins*60000);
+    const delay=triggerMs-Date.now();
+    if(delay>0 && delay<7*24*3600000){
+      setTimeout(()=>{
+        if(Notification.permission==='granted'){
+          new Notification('📅 '+ev.title,{body:(reminderLabel(r)||'')+'\n'+(ev.notes||''),icon:'icons/icon-192.png'});
+        }
+      },delay);
+    }
+  });
+}
+function reminderLabel(k){
+  const m={_:'','':{},
+    '10min':'Za 10 minut','30min':'Za 30 minut','1h':'Za 1 godzinę',
+    '2h':'Za 2 godziny','1day':'Jutro','2days':'Za 2 dni','1week':'Za tydzień'
+  };
+  return m[k]||'';
+}
+
+// ── Navigation ─────────────────────────────────────────────
+let currentView='scan';
+function switchView(v){
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.navbtn').forEach(el=>el.classList.remove('active'));
+  document.getElementById('view-'+v).classList.add('active');
+  document.querySelector(`[data-view="${v}"]`).classList.add('active');
+  currentView=v;
+  const titles={scan:'Skanuj kalendarz',cal:'Mój Kalendarz',agenda:'Agenda',settings:'Ustawienia'};
+  document.getElementById('topbar-title').textContent='📅 '+titles[v];
+  if(v==='cal') renderCalendar();
+  if(v==='agenda') renderAgenda();
+  if(v==='settings') renderSettings();
+}
+
+// ── Toast ──────────────────────────────────────────────────
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// ── Image picking (file input) ─────────────────────────────
+let currentBase64='';
+function pickImage(mode){
+  const input=document.createElement('input');
+  input.type='file'; input.accept='image/*';
+  if(mode==='camera') input.capture='environment';
+  input.onchange=e=>{
+    const file=e.target.files[0]; if(!file) return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const dataUrl=ev.target.result;
+      currentBase64=dataUrl.split(',')[1];
+      document.getElementById('preview-img').src=dataUrl;
+      document.getElementById('image-preview').style.display='block';
+      document.getElementById('results-section').style.display='none';
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+function showGoogleInfo(){
+  if(confirm('Otwórz Google Calendar aby zrobić zrzut ekranu?\n\n1. Zrób screenshot z Google Calendar\n2. Wróć tutaj\n3. Użyj "Galeria / Plik" aby wgrać screenshot')){
+    window.open('https://calendar.google.com','_blank');
+  }
+}
+function showOutlookInfo(){
+  if(confirm('Otwórz Outlook Calendar aby zrobić zrzut ekranu?\n\n1. Zrób screenshot z Outlook\n2. Wróć tutaj\n3. Użyj "Galeria / Plik" aby wgrać screenshot')){
+    window.open('https://outlook.live.com/calendar','_blank');
+  }
+}
+
+// ── AI Analysis ────────────────────────────────────────────
+let scanResults=[];
+async function analyzeImage(){
+  if(!currentBase64){toast('Najpierw wybierz zdjęcie');return;}
+  const btn=document.getElementById('analyze-btn');
+  btn.disabled=true;
+  btn.innerHTML='<div class="spinner"></div> Analizuję...';
+  try{
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':ANTHROPIC_KEY,'anthropic-version':'2023-06-01'},
+      body:JSON.stringify({
+        model:'claude-opus-4-5',max_tokens:2000,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:'image/jpeg',data:currentBase64}},
+          {type:'text',text:`Przeanalizuj ten kalendarz (papierowy lub screenshot z aplikacji) i wyodrębnij WSZYSTKIE widoczne wpisy.
+Dla każdego podaj:
+- date: "YYYY-MM-DD" (rok zgadnij na podstawie kontekstu lub użyj bieżącego roku)
+- title: opis/nazwa
+- time: "HH:MM" jeśli widoczna, null jeśli nie
+- type: "task"|"holiday"|"work"|"reminder"|"other"
+- notes: dodatkowe info lub null
+
+Odpowiedz WYŁĄCZNIE jako JSON array, zero innych słów:
+[{"date":"2025-06-15","title":"Przykład","time":"10:00","type":"reminder","notes":null}]`}
+        ]}]
+      })
+    });
+    const data=await resp.json();
+    const text=data.content?.[0]?.text||'[]';
+    const clean=text.replace(/```json|```/g,'').trim();
+    scanResults=JSON.parse(clean).map((e,i)=>({...e,id:`scan_${Date.now()}_${i}`,reminders:['30min']}));
+    renderScanResults();
+  }catch(e){
+    alert('Błąd analizy. Sprawdź klucz API w pliku index.html (szukaj ANTHROPIC_API_KEY_PLACEHOLDER).\n\n'+e.message);
+  }
+  btn.disabled=false;
+  btn.innerHTML='<svg style="width:20px;height:20px;stroke:#fff;fill:none;stroke-width:1.8" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> Analizuj z AI';
+}
+
+function renderScanResults(){
+  const section=document.getElementById('results-section');
+  const list=document.getElementById('results-list');
+  document.getElementById('results-title').textContent=`Znalezione wpisy (${scanResults.length})`;
+  list.innerHTML='';
+  scanResults.forEach((item,i)=>{
+    const c=TYPE_COLOR[item.type]||'#888';
+    const div=document.createElement('div');
+    div.className='result-card';
+    div.innerHTML=`
+      <div class="rc-header">
+        <span class="type-badge" style="background:${c}22;color:${c}">${TYPE_EMOJI[item.type]||'📌'} ${TYPE_LABEL[item.type]||item.type}</span>
+        <button class="btn-del" onclick="removeScanItem(${i})">✕</button>
+      </div>
+      <div class="rc-date">${item.date}${item.time?' · '+item.time:''}</div>
+      <div class="rc-title">${item.title}</div>
+      <div class="rc-actions">
+        <button class="btn-edit" onclick="editScanItem(${i})">✏️ Edytuj</button>
+      </div>`;
+    list.appendChild(div);
+  });
+  section.style.display='block';
+}
+
+function removeScanItem(i){scanResults.splice(i,1);renderScanResults();}
+function editScanItem(i){openModal(scanResults[i],updated=>{scanResults[i]=updated;renderScanResults();});}
+
+async function saveAllResults(){
+  const events=DB.events();
+  scanResults.forEach(ev=>events.push(ev));
+  DB.save(events);
+  scanResults.forEach(ev=>scheduleNotifications(ev));
+  toast(`Zapisano ${scanResults.length} wpisów ✓`);
+  scanResults=[];
+  document.getElementById('results-section').style.display='none';
+  document.getElementById('image-preview').style.display='none';
+  setTimeout(()=>switchView('cal'),600);
+}
+
+// ── Calendar ───────────────────────────────────────────────
+let currentMonth=new Date();
+let selectedDay=new Date().toISOString().substring(0,10);
+let showHolidaysFlag=true;
+
+function changeMonth(d){
+  currentMonth=new Date(currentMonth.getFullYear(),currentMonth.getMonth()+d,1);
+  renderCalendar();
+}
+function toggleHolidays(){
+  showHolidaysFlag=!showHolidaysFlag;
+  DB.saveSetting('showHolidays',showHolidaysFlag);
+  document.getElementById('holiday-eye').textContent=showHolidaysFlag?'👁':'🚫';
+  renderCalendar();
+}
+
+const PL_MONTHS=['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
+const PL_DAYS_LONG=['Niedziela','Poniedziałek','Wtorek','Środa','Czwartek','Piątek','Sobota'];
+const PL_MONTHS_GEN=['Stycznia','Lutego','Marca','Kwietnia','Maja','Czerwca','Lipca','Sierpnia','Września','Października','Listopada','Grudnia'];
+
+function renderCalendar(){
+  const y=currentMonth.getFullYear(), m=currentMonth.getMonth();
+  document.getElementById('month-label').textContent=PL_MONTHS[m]+' '+y;
+  const events=DB.events();
+  const holidays=showHolidaysFlag?getHolidays(y):[];
+  const holidayDates=new Set(holidays.map(h=>h.date));
+
+  // Expand recurring events for this month
+  const ms=`${y}-${String(m+1).padStart(2,'0')}-01`;
+  const lastDay=new Date(y,m+1,0).getDate();
+  const me=`${y}-${String(m+1).padStart(2,'0')}-${lastDay}`;
+  const expanded=events.flatMap(ev=>ev.recurrence?expandEvent(ev,ms,me):[ev]);
+
+  // Event dates map
+  const evByDate={};
+  expanded.forEach(ev=>{if(ev.date){if(!evByDate[ev.date])evByDate[ev.date]=[];evByDate[ev.date].push(ev);}});
+  holidays.forEach(h=>{if(!evByDate[h.date])evByDate[h.date]=[];evByDate[h.date].unshift({...h,id:'ph_'+h.date,type:'publicHoliday'});});
+
+  const grid=document.getElementById('cal-grid');
+  grid.innerHTML='';
+  const first=(new Date(y,m,1).getDay()+6)%7;
+  for(let i=0;i<first;i++){const el=document.createElement('div');el.className='cal-day';grid.appendChild(el);}
+  const today=new Date().toISOString().substring(0,10);
+  for(let d=1;d<=lastDay;d++){
+    const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dayEvs=evByDate[ds]||[];
+    const dow=new Date(y,m,d).getDay();
+    const isWeekend=dow===0||dow===6;
+    const isHol=holidayDates.has(ds);
+    const el=document.createElement('div');
+    el.className='cal-day'+(ds===today?' today':'')+(ds===selectedDay?' selected':'')+(isWeekend?' weekend':'')+(isHol?' holiday-day':'');
+    el.onclick=()=>{selectedDay=ds;renderCalendar();renderDayEvents();};
+    el.innerHTML=`<span class="dn">${d}</span><div class="dots">${dayEvs.slice(0,4).map(e=>`<div class="dot" style="background:${TYPE_COLOR[e.type]||'#888'}"></div>`).join('')}</div>`;
+    grid.appendChild(el);
+  }
+  renderDayEvents();
+}
+
+function renderDayEvents(){
+  const [y,m,d]=selectedDay.split('-').map(Number);
+  const dow=new Date(y,m-1,d).getDay();
+  document.getElementById('day-label').textContent=`${PL_DAYS_LONG[dow]}, ${d} ${PL_MONTHS_GEN[m-1]}`;
+  const events=DB.events();
+  const holidays=showHolidaysFlag?getHolidays(y):[];
+  const dayHols=holidays.filter(h=>h.date===selectedDay).map(h=>({...h,id:'ph_'+h.date,type:'publicHoliday'}));
+  const dayEvs=events.flatMap(ev=>{
+    if(!ev.recurrence) return ev.date===selectedDay?[ev]:[];
+    return expandEvent(ev,selectedDay,selectedDay);
+  });
+  const all=[...dayHols,...dayEvs];
+  const container=document.getElementById('day-events');
+  if(!all.length){container.innerHTML='<div style="color:#bbb;text-align:center;padding:20px">Brak wpisów</div>';return;}
+  container.innerHTML=all.map(ev=>{
+    const c=TYPE_COLOR[ev.type]||'#888';
+    const isPub=ev.type==='publicHoliday';
+    return `<div class="event-card" style="border-left-color:${c}">
+      <div class="ev-body">
+        <div class="ev-title">${ev.name||ev.title}</div>
+        <div class="ev-meta">${ev.time?'⏰ '+ev.time:''}${ev.recurrence?' 🔁 '+RECUR_LABELS[ev.recurrence.type]||'':ev.isOccurrence?' 🔁':''}</div>
+        ${ev.notes?`<div class="ev-meta">${ev.notes}</div>`:''}
+        <span class="ev-badge" style="background:${c}22;color:${c}">${isPub?'🇵🇱 Święto':TYPE_EMOJI[ev.type]+' '+TYPE_LABEL[ev.type]}</span>
+      </div>
+      ${isPub?'':
+        `<div class="ev-actions">
+          <button class="ev-icon-btn" onclick="editEventFromCal('${ev.originalId||ev.id}')">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#4F6AF5" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="ev-icon-btn" onclick="deleteEventById('${ev.originalId||ev.id}')">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+          </button>
+        </div>`}
+    </div>`;
+  }).join('');
+}
+
+function openAddModal(){openModal({date:selectedDay},ev=>{const evs=DB.events();evs.push({...ev,id:Date.now().toString()});DB.save(evs);scheduleNotifications(ev);toast('Dodano ✓');renderCalendar();});}
+function editEventFromCal(id){
+  const ev=DB.events().find(e=>e.id===id); if(!ev) return;
+  openModal(ev,updated=>{const evs=DB.events().map(e=>e.id===id?updated:e);DB.save(evs);scheduleNotifications(updated);toast('Zaktualizowano ✓');renderCalendar();});
+}
+function deleteEventById(id){
+  if(!confirm('Usunąć to wydarzenie?')) return;
+  DB.save(DB.events().filter(e=>e.id!==id));
+  toast('Usunięto');renderCalendar();
+}
+
+// ── Agenda ─────────────────────────────────────────────────
+let agendaFilter='all';
+function renderAgenda(){
+  const filters=[{k:'all',l:'Wszystko'},{k:'upcoming',l:'Nadchodzące'},{k:'task',l:'Zadania'},{k:'holiday',l:'Urlopy'},{k:'work',l:'Praca'},{k:'reminder',l:'Przypomnienia'}];
+  const bar=document.getElementById('filter-bar');
+  bar.innerHTML=filters.map(f=>`<div class="filter-chip${agendaFilter===f.k?' active':''}" onclick="setAgendaFilter('${f.k}')">${f.l}</div>`).join('');
+  const events=DB.events();
+  const today=new Date().toISOString().substring(0,10);
+  const future=new Date(new Date().getFullYear(),new Date().getMonth()+12,1).toISOString().substring(0,10);
+  let expanded=events.flatMap(ev=>ev.recurrence?expandEvent(ev,today,future):[ev]);
+  if(agendaFilter==='upcoming') expanded=expanded.filter(e=>e.date>=today);
+  else if(agendaFilter!=='all') expanded=expanded.filter(e=>e.type===agendaFilter);
+  expanded.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const byMonth={};
+  expanded.forEach(ev=>{const k=(ev.date||'').substring(0,7);if(!byMonth[k])byMonth[k]=[];byMonth[k].push(ev);});
+  const list=document.getElementById('agenda-list');
+  if(!expanded.length){list.innerHTML='<div class="empty-msg">Brak wpisów</div>';return;}
+  list.innerHTML=Object.keys(byMonth).sort().map(k=>{
+    const [y,m]=k.split('-');
+    const header=`<div class="month-group">${PL_MONTHS[Number(m)-1]} ${y}</div>`;
+    const items=byMonth[k].map(ev=>{
+      const c=TYPE_COLOR[ev.type]||'#888';
+      return `<div class="agenda-card" style="border-left-color:${c}">
+        <div class="ag-icon" style="background:${c}18;color:${c}">
+          <svg viewBox="0 0 24 24">${typeIconPath(ev.type)}</svg>
+        </div>
+        <div class="ag-body">
+          <div class="ag-title">${ev.title}</div>
+          <div class="ag-meta">${ev.date}${ev.time?' · '+ev.time:''}${ev.isOccurrence?' 🔁':''}</div>
+          ${ev.notes?`<div class="ag-meta">${ev.notes}</div>`:''}
+        </div>
+        <button class="ag-del" onclick="deleteEventById('${ev.originalId||ev.id}')">
+          <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+      </div>`;
+    }).join('');
+    return header+items;
+  }).join('');
+}
+function setAgendaFilter(f){agendaFilter=f;renderAgenda();}
+function typeIconPath(t){
+  if(t==='task') return '<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>';
+  if(t==='holiday') return '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>';
+  if(t==='work') return '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>';
+  if(t==='reminder') return '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>';
+  return '<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>';
+}
+
+// ── Settings ───────────────────────────────────────────────
+function renderSettings(){
+  const s=DB.settings();
+  showHolidaysFlag=s.showHolidays!==false;
+  document.getElementById('toggle-holidays').className='toggle'+(showHolidaysFlag?' on':'');
+  const notifOn=s.notifEnabled!==false;
+  document.getElementById('toggle-notif').className='toggle'+(notifOn?' on':'');
+  document.getElementById('event-count').textContent=DB.events().length;
+  const defRem=s.defaultReminders||['30min'];
+  const chips=document.getElementById('default-reminders-chips');
+  chips.innerHTML=REMINDER_OPTIONS.map(r=>`<div class="reminder-chip${defRem.includes(r.key)?' active':''}" onclick="toggleDefaultReminder('${r.key}')">${r.label}</div>`).join('');
+}
+function toggleSettingHolidays(){
+  showHolidaysFlag=!showHolidaysFlag;
+  DB.saveSetting('showHolidays',showHolidaysFlag);
+  renderSettings();
+}
+function toggleSettingNotif(){
+  const s=DB.settings();
+  const was=s.notifEnabled!==false;
+  DB.saveSetting('notifEnabled',!was);
+  if(!was) requestNotifPerm();
+  renderSettings();
+}
+function toggleDefaultReminder(k){
+  const s=DB.settings();
+  let r=s.defaultReminders||['30min'];
+  r=r.includes(k)?r.filter(x=>x!==k):[...r,k];
+  DB.saveSetting('defaultReminders',r);
+  renderSettings();
+}
+function clearAll(){
+  if(!confirm('Na pewno usunąć wszystkie wpisy?')) return;
+  DB.save([]);
+  toast('Usunięto wszystkie wpisy');
+  renderSettings();
+}
+
+// ── Modal ──────────────────────────────────────────────────
+let modalCallback=null;
+let modalEditId=null;
+
+function initChips(){
+  const s=DB.settings();
+  const defRem=s.defaultReminders||['30min'];
+  // type chips
+  const tc=document.getElementById('type-chips');
+  tc.innerHTML=Object.entries(TYPE_LABEL).map(([k,v])=>`<div class="form-chip" data-type="${k}" onclick="selectType('${k}')">${TYPE_EMOJI[k]} ${v}</div>`).join('');
+  // reminder chips
+  const rc=document.getElementById('reminder-chips');
+  rc.innerHTML=REMINDER_OPTIONS.map(r=>`<div class="form-chip red" data-rem="${r.key}" onclick="toggleReminder('${r.key}')">${r.label}</div>`).join('');
+  // set defaults
+  selectType('task');
+  defRem.forEach(r=>document.querySelector(`[data-rem="${r}"]`)?.classList.add('active'));
+}
+function selectType(k){
+  document.querySelectorAll('[data-type]').forEach(el=>{
+    el.classList.toggle('active',el.dataset.type===k);
+  });
+}
+function toggleReminder(k){
+  document.querySelector(`[data-rem="${k}"]`)?.classList.toggle('active');
+}
+function toggleUntil(){
+  const v=document.getElementById('f-recur').value;
+  document.getElementById('recur-until-row').style.display=v==='none'?'none':'block';
+}
+
+function openModal(initial, callback){
+  modalCallback=callback;
+  modalEditId=initial?.id||null;
+  document.getElementById('modal-title').textContent=initial?.title?'Edytuj wpis':'Nowy wpis';
+  initChips();
+  document.getElementById('f-title').value=initial?.title||'';
+  document.getElementById('f-date').value=initial?.date||new Date().toISOString().substring(0,10);
+  document.getElementById('f-time').value=initial?.time||'09:00';
+  document.getElementById('f-notes').value=initial?.notes||'';
+  document.getElementById('f-recur').value=initial?.recurrence?.type||'none';
+  document.getElementById('f-recur-until').value=initial?.recurrence?.until||'';
+  document.getElementById('recur-until-row').style.display=initial?.recurrence?'block':'none';
+  if(initial?.type) selectType(initial.type);
+  const reminders=initial?.reminders||['30min'];
+  document.querySelectorAll('[data-rem]').forEach(el=>{
+    el.classList.toggle('active',reminders.includes(el.dataset.rem));
+  });
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+function closeModal(){document.getElementById('modal-overlay').classList.add('hidden');}
+function handleOverlayClick(e){if(e.target===document.getElementById('modal-overlay'))closeModal();}
+
+function saveModal(){
+  const title=document.getElementById('f-title').value.trim();
+  if(!title){alert('Wpisz tytuł');return;}
+  const type=document.querySelector('[data-type].active')?.dataset.type||'task';
+  const reminders=[...document.querySelectorAll('[data-rem].active')].map(el=>el.dataset.rem);
+  const recurType=document.getElementById('f-recur').value;
+  const ev={
+    id:modalEditId||Date.now().toString(),
+    title,
+    date:document.getElementById('f-date').value,
+    time:document.getElementById('f-time').value,
+    type,
+    notes:document.getElementById('f-notes').value,
+    reminders:reminders.length?reminders:['30min'],
+    recurrence:recurType!=='none'?{type:recurType,until:document.getElementById('f-recur-until').value||null}:null,
+  };
+  closeModal();
+  if(modalCallback) modalCallback(ev);
+}
+
+// ── Init ───────────────────────────────────────────────────
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
+requestNotifPerm();
+renderCalendar();
+renderAgenda();
+</script>
+</body>
+</html>
