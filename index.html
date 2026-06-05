@@ -263,9 +263,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   </div>
   <div id="img-wrap">
     <img id="prev-img" alt="">
-    <button class="btn" id="analyze-btn" onclick="doAnalyze()">
-      <svg style="width:24px;height:24px;stroke:#fff;fill:none;stroke-width:2" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>Analizuj z AI
-    </button>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
+      <button class="btn" id="analyze-gemini" onclick="doAnalyze('gemini')" style="background:#16A34A">
+        <svg style="width:24px;height:24px;stroke:#fff;fill:none;stroke-width:2" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        ✨ Analizuj — Gemini (darmowy)
+      </button>
+      <button class="btn" id="analyze-claude" onclick="doAnalyze('claude')" style="background:#7C3AED">
+        <svg style="width:24px;height:24px;stroke:#fff;fill:none;stroke-width:2" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        🤖 Analizuj — Claude (płatny)
+      </button>
+    </div>
   </div>
   <div id="res-sec">
     <div id="res-ttl"></div>
@@ -323,17 +330,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <div class="ss">
     <div class="sl">🔑 Klucz API</div>
     <div class="card">
-      <div class="kb">
-        <div class="klbl">Wklej klucz API — zapisywany tylko na tym urządzeniu</div>
-        <div class="kr"><input class="ki" id="ki" type="password" placeholder="sk-ant-... lub AIza..."><button class="ks" onclick="saveKey()">Zapisz</button></div>
-        <div class="kst" id="kst"></div>
-      </div>
-      <div class="ai-pick">
-        <div class="ai-lbl">Silnik AI do analizy zdjęć:</div>
-        <div class="ai-opts">
-          <label class="ai-opt on" id="opt-claude"><input type="radio" name="ai" value="claude" checked onchange="pickAI('claude')"><div><div class="ai-opt-n">🤖 Claude (Anthropic)</div><div class="ai-opt-s">Płatny — klucz z console.anthropic.com</div></div></label>
-          <label class="ai-opt" id="opt-gemini"><input type="radio" name="ai" value="gemini" onchange="pickAI('gemini')"><div><div class="ai-opt-n">✨ Gemini Flash (Google)</div><div class="ai-opt-s">Darmowy! — klucz z aistudio.google.com/apikey</div></div></label>
+      <div class="kb" style="background:#F0FFF4">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <div style="width:12px;height:12px;border-radius:50%;background:#16A34A;flex-shrink:0"></div>
+          <div class="klbl" style="margin:0;color:#166534;font-weight:700">✨ Gemini Flash (Google) — DARMOWY</div>
         </div>
+        <div class="klbl" style="color:#166534">Klucz z <a href="https://aistudio.google.com/apikey" target="_blank" style="color:#16A34A">aistudio.google.com/apikey</a></div>
+        <div class="kr" style="margin-top:8px">
+          <input class="ki" id="ki-gemini" type="password" placeholder="AIza...">
+          <button class="ks" style="background:#16A34A" onclick="saveKeyFor('gemini')">Zapisz</button>
+        </div>
+        <div class="kst" id="kst-gemini"></div>
+      </div>
+      <div class="kb" style="border-top:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <div style="width:12px;height:12px;border-radius:50%;background:#7C3AED;flex-shrink:0"></div>
+          <div class="klbl" style="margin:0;color:#4C1D95;font-weight:700">🤖 Claude (Anthropic) — płatny</div>
+        </div>
+        <div class="klbl">Klucz z <a href="https://console.anthropic.com" target="_blank" style="color:#7C3AED">console.anthropic.com</a></div>
+        <div class="kr" style="margin-top:8px">
+          <input class="ki" id="ki-claude" type="password" placeholder="sk-ant-api03-...">
+          <button class="ks" style="background:#7C3AED" onclick="saveKeyFor('claude')">Zapisz</button>
+        </div>
+        <div class="kst" id="kst-claude"></div>
       </div>
     </div>
   </div>
@@ -666,13 +685,22 @@ let b64='',scanR=[];
 function pickImg(mode){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';if(mode==='camera')inp.capture='environment';inp.onchange=e=>{const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=ev=>{b64=ev.target.result.split(',')[1];document.getElementById('prev-img').src=ev.target.result;document.getElementById('img-wrap').style.display='block';document.getElementById('res-sec').style.display='none';scanR=[];};r.readAsDataURL(file);};inp.click();}
 function calInfo(n,u){if(confirm(`Import z ${n}:\n\n1. Otwórz ${n}\n2. Zrób screenshot widoku miesiąca\n3. Wróć → Galeria\n\nOtworzyć ${n}?`))window.open(u,'_blank');}
 const PROMPT='Przeanalizuj ten kalendarz i wyodrębnij WSZYSTKIE widoczne wpisy. Odpowiedz WYŁĄCZNIE jako JSON array:\n[{"date":"YYYY-MM-DD","title":"tekst","time":"HH:MM lub null","type":"task|holiday|work|reminder|other","notes":"tekst lub null"}]';
-async function doAnalyze(){
+async function doAnalyze(forceProv){
   if(!b64){toast('Najpierw wybierz zdjęcie');return;}
-  const prov=S.aiProv();
-  const key=S.keyFor?S.keyFor(prov):S.key();
-  if(!key){toast(`Brak klucza ${prov==='gemini'?'Gemini':'Claude'} — przejdź do Ustawień`);go('settings');return;}
-  const btn=document.getElementById('analyze-btn');
-  btn.disabled=true;btn.innerHTML='<div class="spin"></div> Analizuję ('+( prov==='gemini'?'Gemini':'Claude')+')...';
+  const prov=forceProv||S.aiProv();
+  const key=prov==='gemini'
+    ? (localStorage.getItem('gemini_key')||'')
+    : (localStorage.getItem('claude_key')||localStorage.getItem('ant_key')||'');
+  if(!key){
+    if(prov==='gemini') toast('Brak klucza Gemini — wklej w Ustawieniach → Gemini');
+    else toast('Brak klucza Claude — wklej w Ustawieniach → Claude');
+    go('settings');return;
+  }
+  const btnId=prov==='gemini'?'analyze-gemini':'analyze-claude';
+  const btn=document.getElementById(btnId);
+  const origHtml=btn.innerHTML;
+  btn.disabled=true;
+  btn.innerHTML=`<div class="spin"></div> Analizuję (${prov==='gemini'?'Gemini':'Claude'})...`;
   try{
     let raw;
     if(prov==='gemini'){
@@ -685,7 +713,7 @@ async function doAnalyze(){
     scanR=JSON.parse(raw.replace(/```json|```/g,'').trim()).map((e,i)=>({...e,id:`sc_${Date.now()}_${i}`,reminders:S.cfg().defaultReminders||['30min'],personId:scanForPerson||null}));
     rScanR();
   }catch(e){toast('Błąd: '+e.message.slice(0,70));}
-  btn.disabled=false;btn.innerHTML='<svg style="width:24px;height:24px;stroke:#fff;fill:none;stroke-width:2" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> Analizuj z AI';
+  btn.disabled=false;btn.innerHTML=origHtml;
 }
 function rScanR(){
   document.getElementById('res-ttl').textContent=`Znalezione wpisy (${scanR.length})`;
