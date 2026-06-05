@@ -448,8 +448,20 @@ const S={
   save(e){localStorage.setItem('cal_v2',JSON.stringify(e))},
   cfg(){try{return JSON.parse(localStorage.getItem('cal_cfg')||'{}')}catch{return{}}},
   set(k,v){const c=this.cfg();c[k]=v;localStorage.setItem('cal_cfg',JSON.stringify(c))},
-  key(){return localStorage.getItem('ant_key')||''},
-  saveKey(k){localStorage.setItem('ant_key',k)},
+  key(){
+    const prov=this.aiProv();
+    return prov==='gemini'
+      ? localStorage.getItem('gemini_key')||''
+      : localStorage.getItem('claude_key')||'';
+  },
+  saveKey(k){
+    const prov=this.aiProv();
+    if(prov==='gemini') localStorage.setItem('gemini_key',k);
+    else localStorage.setItem('claude_key',k);
+    // also save to legacy key for compatibility
+    localStorage.setItem('ant_key',k);
+  },
+  keyFor(prov){ return prov==='gemini' ? localStorage.getItem('gemini_key')||'' : localStorage.getItem('claude_key')||''; },
   aiProv(){return localStorage.getItem('ai_prov')||'gemini'},
   setAIProv(v){localStorage.setItem('ai_prov',v)},
   persons(){try{return JSON.parse(localStorage.getItem('persons')||'[]')}catch{return[]}},
@@ -608,7 +620,9 @@ function deletePerson(id){
 
 // ── API KEY ───────────────────────────────────────────────
 function refreshKeyUI(){
-  const k=S.key(),inp=document.getElementById('ki'),st=document.getElementById('kst');
+  const prov=S.aiProv();
+  const k=S.keyFor?S.keyFor(prov):S.key();
+  const inp=document.getElementById('ki'),st=document.getElementById('kst');
   if(inp)inp.value=k;
   if(st){st.textContent=k?'✓ Klucz zapisany':'⚠ Brak klucza — wklej klucz API';st.className='kst '+(k?'ok':'no');}
   const p=S.aiProv();
@@ -617,7 +631,7 @@ function refreshKeyUI(){
   const r=document.querySelector(`input[value="${p}"]`);if(r)r.checked=true;
 }
 function saveKey(){const v=document.getElementById('ki').value.trim();if(!v){toast('Wklej klucz');return;}S.saveKey(v);refreshKeyUI();toast('Klucz zapisany ✓');}
-function pickAI(v){S.setAIProv(v);refreshKeyUI();}
+function pickAI(v){S.setAIProv(v);refreshKeyUI();toast(v==='gemini'?'Przełączono na Gemini Flash ✓':'Przełączono na Claude ✓');}
 
 // ── HOLIDAYS ──────────────────────────────────────────────
 function easter(y){const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mo=Math.floor((h+l-7*m+114)/31),day=((h+l-7*m+114)%31)+1;return new Date(y,mo-1,day);}
@@ -654,11 +668,13 @@ function calInfo(n,u){if(confirm(`Import z ${n}:\n\n1. Otwórz ${n}\n2. Zrób sc
 const PROMPT='Przeanalizuj ten kalendarz i wyodrębnij WSZYSTKIE widoczne wpisy. Odpowiedz WYŁĄCZNIE jako JSON array:\n[{"date":"YYYY-MM-DD","title":"tekst","time":"HH:MM lub null","type":"task|holiday|work|reminder|other","notes":"tekst lub null"}]';
 async function doAnalyze(){
   if(!b64){toast('Najpierw wybierz zdjęcie');return;}
-  const key=S.key();if(!key){toast('Brak klucza API — przejdź do Ustawień');go('settings');return;}
+  const prov=S.aiProv();
+  const key=S.keyFor?S.keyFor(prov):S.key();
+  if(!key){toast(`Brak klucza ${prov==='gemini'?'Gemini':'Claude'} — przejdź do Ustawień`);go('settings');return;}
   const btn=document.getElementById('analyze-btn');
-  btn.disabled=true;btn.innerHTML='<div class="spin"></div> Analizuję...';
+  btn.disabled=true;btn.innerHTML='<div class="spin"></div> Analizuję ('+( prov==='gemini'?'Gemini':'Claude')+')...';
   try{
-    const prov=S.aiProv();let raw;
+    let raw;
     if(prov==='gemini'){
       const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{inline_data:{mime_type:'image/jpeg',data:b64}},{text:PROMPT}]}]})});
       const d=await resp.json();if(d.error)throw new Error(d.error.message);raw=d.candidates?.[0]?.content?.parts?.[0]?.text||'[]';
