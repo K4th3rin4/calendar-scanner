@@ -720,7 +720,12 @@ async function doAnalyze(forceProv){
     }
     scanR=JSON.parse(raw.replace(/```json|```/g,'').trim()).map((e,i)=>({...e,id:`sc_${Date.now()}_${i}`,reminders:S.cfg().defaultReminders||['30min'],personId:scanForPerson||null}));
     rScanR();
-  }catch(e){toast('Błąd: '+e.message.slice(0,70));}
+  }catch(e){
+    const msg = e.message||String(e);
+    console.error('FULL ERROR:', msg);
+    // Show full error in alert so we can see it
+    alert('PEŁNY BŁĄD:\n\nProvider: ' + prov + '\nKlucz (pierwsze 8 znaków): ' + key.slice(0,8) + '...\n\nBłąd: ' + msg);
+  }
   btn.disabled=false;btn.innerHTML=origHtml;
 }
 function rScanR(){
