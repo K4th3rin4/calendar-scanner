@@ -1,25 +1,30 @@
-# 📅 Kalendarz Scanner v2.0
+# 📅 Kalendarz Scanner
 
-Aplikacja na Android do skanowania kalendarzy i zarządzania zadaniami.
+Aplikacja na Android do skanowania papierowych kalendarzy.
 
-## ✨ Co nowego w v2.0
-- 📸 **4 sposoby dodawania**: aparat, galeria/plik, screenshot z Google Cal/Outlook
-- 🔁 **Zadania cykliczne**: codziennie, co tydzień, co miesiąc, co rok
-- 🇵🇱 **Polskie święta**: automatycznie w kalendarzu (z algorytmem Wielkanocy)
-- 🔔 **Elastyczne powiadomienia**: 10 min, 30 min, 1h, 2h, 1 dzień, 2 dni, tydzień przed
+## Funkcje
+- 📸 Skanowanie zdjęcia kalendarza (aparat lub galeria)
+- 🤖 Automatyczne odczytywanie wpisów przez AI (Claude)
+- 📅 Interaktywny kalendarz miesięczny
+- ✏️ Edycja, dodawanie i usuwanie wpisów
+- 🔔 Powiadomienia o wydarzeniach
+- 🏷️ Typy: Zadanie, Urlop, Praca, Przypomnienie, Inne
 
-## 🚀 Jak zbudować APK
+## Instalacja na telefonie
 
-1. Wejdź na **https://expo.dev** → utwórz konto
-2. Otwórz to repo → **Code → Codespaces → Create codespace**
-3. W terminalu:
-   ```bash
-   npm install -g eas-cli
-   eas login
-   eas build --platform android --profile preview
-   ```
-4. Pobierz `.apk` z linku i zainstaluj na telefonie
+### Opcja 1: EAS Build (zalecana)
+1. Załóż konto na [expo.dev](https://expo.dev)
+2. Dodaj secret `EXPO_TOKEN` w GitHub → Settings → Secrets
+3. Push do main uruchomi automatyczny build
+4. Pobierz APK z zakładki Actions lub Expo dashboard
 
-## ⚙️ Konfiguracja
+### Opcja 2: Lokalnie
+```bash
+npm install -g @expo/cli eas-cli
+npm install
+eas login
+eas build --platform android --profile preview
+```
 
-W pliku `src/screens/ScanScreen.js` zamień `ANTHROPIC_API_KEY_PLACEHOLDER` na swój klucz z https://console.anthropic.com
+## Konfiguracja API
+W pliku `src/screens/ScanScreen.js` zamień `ANTHROPIC_API_KEY_PLACEHOLDER` na swój klucz API Anthropic.
