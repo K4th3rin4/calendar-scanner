@@ -1,6 +1,5 @@
-const CACHE = 'kalendarz-v2';
+const CACHE = 'kalendarz-v3';
 const ASSETS = ['./', './index.html', './manifest.json'];
-
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
   self.skipWaiting();
@@ -13,8 +12,4 @@ self.addEventListener('activate', e => {
 });
 self.addEventListener('fetch', e => {
   e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
-});
-self.addEventListener('notificationclick', e => {
-  e.notification.close();
-  e.waitUntil(clients.openWindow('./'));
 });
