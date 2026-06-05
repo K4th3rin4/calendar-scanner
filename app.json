@@ -2,7 +2,7 @@
   "expo": {
     "name": "Kalendarz",
     "slug": "calendar-scanner",
-    "version": "2.0.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -25,8 +25,7 @@
         "SCHEDULE_EXACT_ALARM",
         "USE_EXACT_ALARM",
         "VIBRATE",
-        "POST_NOTIFICATIONS",
-        "READ_MEDIA_IMAGES"
+        "POST_NOTIFICATIONS"
       ]
     },
     "plugins": [
@@ -44,7 +43,6 @@
           "cameraPermission": "Aplikacja potrzebuje dost\u0119pu do aparatu aby zeskanowa\u0107 kalendarz."
         }
       ]
-    ],
-    "scheme": "calendarscanner"
+    ]
   }
 }
