@@ -18,9 +18,85 @@
   --st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px)
 }
 body.dark{
-  --blue:#738FFF;--green:#34D399;--red:#F87171;--purple:#A78BFA;
-  --bg:#0F1117;--card:#1C1F2E;--text:#F0F2FF;--sub:#9BA3B8;--border:#2D3148
+  --blue:#7B93FF;--green:#34D399;--red:#F87171;--purple:#A78BFA;
+  --bg:#0D0F1A;--card:#161824;--text:#ECEFFE;--sub:#8892AA;--border:#252840
 }
+/* Dark mode - wszystkie białe tła */
+body.dark #nav{background:#161824;border-top-color:#252840}
+body.dark .cal-nav,
+body.dark .ht,
+body.dark .wdays,
+body.dark #cal-grid,
+body.dark .fbar,
+body.dark #sheet,
+body.dark #psheet,
+body.dark .scan-for{background:#161824}
+body.dark .card,
+body.dark .rc,
+body.dark .ec,
+body.dark .ac,
+body.dark .settings-card{background:#1E2135}
+/* Tekst w dark mode */
+body.dark .at,
+body.dark .am,
+body.dark .ett,
+body.dark .em,
+body.dark .dn,
+body.dark .rc-title,
+body.dark .rc-date,
+body.dark .dtl,
+body.dark .cal-nav h2,
+body.dark .ht span,
+body.dark .wdays div,
+body.dark .scan-for-lbl,
+body.dark .pname,
+body.dark .pstats,
+body.dark .rl,
+body.dark .rr,
+body.dark .klbl,
+body.dark .mtt,
+body.dark .fl,
+body.dark .sublbl,
+body.dark .sl{color:var(--text)}
+body.dark .sub{color:var(--sub)}
+/* Inputy w dark mode */
+body.dark .fi,
+body.dark .fsel,
+body.dark .fta,
+body.dark .ki{background:#0D0F1A;border-color:#252840;color:var(--text)}
+body.dark .fi:focus,
+body.dark .fsel:focus,
+body.dark .fta:focus,
+body.dark .ki:focus{border-color:var(--blue)}
+/* Chipy w dark mode */
+body.dark .chip,
+body.dark .fc,
+body.dark .rc2,
+body.dark .psc{background:#0D0F1A;border-color:#252840;color:var(--sub)}
+body.dark .chip.on{background:var(--blue);border-color:var(--blue);color:#fff}
+body.dark .chip.red.on{background:var(--red);border-color:var(--red)}
+body.dark .fc.on{background:var(--blue);border-color:var(--blue);color:#fff}
+body.dark .rc2.on{background:var(--red);border-color:var(--red);color:#fff}
+/* Dni kalendarza */
+body.dark .cd.tod:not(.sel){border-color:var(--blue)}
+body.dark .cd.tod:not(.sel) .dn{color:var(--blue)}
+body.dark .cd:active{background:#252840}
+/* Agenda karty - tło */
+body.dark .ac{background:#1E2135 !important}
+body.dark .mhdr{color:var(--blue)}
+/* Przyciski */
+body.dark .badd{background:var(--blue)}
+body.dark .adl{color:#4A5070}
+body.dark .adl:hover{color:var(--sub)}
+/* Modal overlay */
+body.dark #ov,body.dark #pov{background:rgba(0,0,0,.75)}
+/* Segment headers */
+body.dark .month-hdr{color:var(--blue)}
+/* Toast */
+body.dark #toast{background:#ECEFFE;color:#0D0F1A}
+/* Topbar osoby chip */
+body.dark .pchip{border-color:rgba(255,255,255,.2);background:rgba(255,255,255,.08)}
+body.dark .pchip.on{background:rgba(255,255,255,.9);color:#0D0F1A}
 html,body{width:100%;height:100%}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;overflow:hidden;font-size:20px}
 #topbar{background:var(--blue);padding:calc(14px + var(--st)) 18px 0;flex-shrink:0}
