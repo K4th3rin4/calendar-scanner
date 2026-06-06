@@ -564,8 +564,43 @@ function delP(id){
 }
 
 // ── ŚWIĘTA ─────────────────────────────────────────────
-function easter(y){const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mo=Math.floor((h+l-7*m+114)/31),day=((h+l-7*m+114)%31)+1;return new Date(y,mo-1,day);}
-function getHols(y){const H=[];const f=(m,d,n)=>H.push({date:`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`,name:n});f(1,1,'Nowy Rok');f(1,6,'Trzech Króli');f(5,1,'Święto Pracy');f(5,3,'Konstytucja 3 Maja');f(8,15,'Wniebowzięcie NMP');f(11,1,'Wszystkich Świętych');f(11,11,'Święto Niepodległości');f(12,25,'Boże Narodzenie');f(12,26,'Drugi dzień BN');const e=easter(y);const ad=(b,days,n)=>{const d=new Date(b);d.setDate(d.getDate()+days);H.push({date:d.toISOString().slice(0,10),name:n});};H.push({date:e.toISOString().slice(0,10),name:'Wielka Niedziela'});ad(e,1,'Poniedziałek Wielkanocny');ad(e,49,'Zielone Świątki');ad(e,60,'Boże Ciało');return H;}
+function easter(y){
+  const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,
+    f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),
+    h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,
+    l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),
+    mo=Math.floor((h+l-7*m+114)/31),day=((h+l-7*m+114)%31)+1;
+  return {y:y, m:mo, d:day};
+}
+function dateStr(y,m,d){return y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');}
+function addDays(y,m,d,days){
+  // Dodaj dni bez problemów ze strefą czasową
+  const dt=new Date(y,m-1,d);
+  dt.setDate(dt.getDate()+days);
+  return {y:dt.getFullYear(),m:dt.getMonth()+1,d:dt.getDate()};
+}
+function getHols(y){
+  const H=[];
+  const f=(m,d,n)=>H.push({date:dateStr(y,m,d),name:n});
+  // Święta stałe
+  f(1,1,'Nowy Rok');
+  f(1,6,'Trzech Króli');
+  f(5,1,'Święto Pracy');
+  f(5,3,'Konstytucja 3 Maja');
+  f(8,15,'Wniebowzięcie NMP');
+  f(11,1,'Wszystkich Świętych');
+  f(11,11,'Święto Niepodległości');
+  f(12,25,'Boże Narodzenie');
+  f(12,26,'Drugi dzień Bożego Narodzenia');
+  // Święta ruchome - liczone od Wielkanocy
+  const e=easter(y);
+  const ad=(days,name)=>{const r=addDays(e.y,e.m,e.d,days);H.push({date:dateStr(r.y,r.m,r.d),name:name});};
+  H.push({date:dateStr(e.y,e.m,e.d),name:'Wielka Niedziela'});
+  ad(1,'Poniedziałek Wielkanocny');
+  ad(49,'Zielone Świątki');
+  ad(60,'Boże Ciało');
+  return H;
+}
 
 // ── POWTARZANIE ────────────────────────────────────────
 function expand(ev,from,to){if(!ev.recurrence||!ev.date)return[ev];const res=[],end=to?new Date(to+'T00:00:00'):new Date(new Date().getFullYear()+2,11,31);const until=ev.recurrence.until?new Date(ev.recurrence.until+'T00:00:00'):end;let cur=new Date(ev.date+'T00:00:00'),n=0;while(cur<=until&&cur<=end&&n<500){const ds=cur.toISOString().slice(0,10);if(!from||ds>=from)res.push({...ev,date:ds,id:ev.id+'_'+ds,isOcc:true,origId:ev.id});n++;const nx=new Date(cur);if(ev.recurrence.type==='daily')nx.setDate(nx.getDate()+1);else if(ev.recurrence.type==='weekly')nx.setDate(nx.getDate()+7);else if(ev.recurrence.type==='monthly')nx.setMonth(nx.getMonth()+1);else if(ev.recurrence.type==='yearly')nx.setFullYear(nx.getFullYear()+1);else break;cur=nx;}return res;}
