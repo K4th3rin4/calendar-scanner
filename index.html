@@ -230,10 +230,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   </div>
   <div id="img-wrap">
     <img id="prev-img" alt="">
-    <button class="btn" id="abtn" onclick="doScan()">
-      <svg style="width:24px;height:24px;stroke:#fff;fill:none;stroke-width:2" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-      Analizuj z AI (Claude)
-    </button>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
+      <button class="btn" id="abtn-claude" onclick="doScan('claude')" style="background:var(--purple)">
+        <svg style="width:24px;height:24px;stroke:#fff;fill:none;stroke-width:2" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        🤖 Analizuj — Claude
+      </button>
+      <button class="btn" id="abtn-gemini" onclick="doScan('gemini')" style="background:var(--green)">
+        <svg style="width:24px;height:24px;stroke:#fff;fill:none;stroke-width:2" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        ✨ Analizuj — Gemini
+      </button>
+    </div>
   </div>
   <div id="res-sec">
     <div id="res-ttl"></div>
@@ -464,12 +470,7 @@ function refreshKeys(){
   if(ig) ig.value=gk;
   if(sc){sc.textContent=ck?'✓ Klucz Claude zapisany':'⚠ Brak klucza Claude';sc.className='kst '+(ck?'ok':'no');}
   if(sg){sg.textContent=gk?'✓ Klucz Gemini zapisany':'⚠ Brak klucza Gemini';sg.className='kst '+(gk?'ok':'no');}
-  // Aktualizuj przycisk skanowania
-  const abtn=document.getElementById('abtn');
-  if(abtn){
-    if(ck) abtn.innerHTML='<svg style="width:24px;height:24px;stroke:#fff;fill:none;stroke-width:2" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> Analizuj z AI (Claude)';
-    else if(gk) abtn.innerHTML='<svg style="width:24px;height:24px;stroke:#fff;fill:none;stroke-width:2" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> Analizuj z AI (Gemini)';
-  }
+
 }
 
 // ── OSOBY ──────────────────────────────────────────────
@@ -596,23 +597,25 @@ const PROMPT = [
   'Przeanalizuj ten papierowy planer/kalendarz rodzinny.',
   '',
   'STRUKTURA KALENDARZA:',
-  'Kalendarz ma kolumny - kazda kolumna to JEDNA konkretna osoba.',
-  'Wiersze to dni miesiaca. Komorka na przecieciu wiersza i kolumny to wpis dla TEJ osoby w TYM dniu.',
-  'BARDZO WAZNE: Wszystkie wpisy w jednej kolumnie naleza do tej samej osoby.',
-  'NIE przypisuj wpisow z jednej kolumny do innej osoby.',
+  '- Kalendarz ma kolumny. Kazda kolumna to JEDNA osoba (imie w naglowku).',
+  '- Wiersze to kolejne dni miesiaca.',
+  '- Komorka = konkretny dzien + konkretna osoba.',
+  '- KLUCZOWE: Jesli komorka jest PUSTA lub ma KRESKĘ - nie dodawaj zadnego wpisu dla tej osoby w tym dniu!',
+  '- Nie wymyslaj ani nie domyslaj sie wpisow. Dodaj TYLKO to co wyraznie widac napisane.',
   '',
-  'ZASADY INTERPRETACJI:',
-  '1. "19-7" = ZAKRES GODZIN, praca nocna od 19:00 do 07:00 (NIE godzina 19:07!)',
-  '   -> title="Praca nocna", time="19:00", notes="19:00-07:00", type="work"',
-  '2. "7-19" = praca dzienna -> title="Praca dzienna", time="07:00", notes="07:00-19:00", type="work"',
-  '3. "BIURO" = praca z biura -> type="work", title="Praca z biura"',
-  '4. "X" lub "x" = urlop -> type="holiday", title="Urlop"',
-  '5. "BARBER 10:30" = wizyta -> type="reminder", title="Barber", time="10:30"',
-  '6. "LEKARZ", "DENTYSTA" itp. = wizyta -> type="reminder"',
-  '7. Kazdy wpis MUSI miec title (nigdy null!)',
-  '8. Pole "person" = imie z naglowka kolumny tej osoby',
+  'ZASADY INTERPRETACJI WPISOW:',
+  '- "19-7" lub "19-07" = zakres godzin: praca nocna, title="Praca nocna", time="19:00", notes="19:00-07:00", type="work"',
+  '- "7-19" lub "07-19" = zakres godzin: praca dzienna, title="Praca dzienna", time="07:00", notes="07:00-19:00", type="work"',
+  '- "BIURO" = praca z biura, type="work", title="Praca z biura"',
+  '- "X" lub "x" = urlop, type="holiday", title="Urlop"',
+  '- Nazwa wizyty z godzina np. "BARBER 10:30" = type="reminder", title="Barber", time="10:30"',
+  '- Nazwa wizyty bez godziny np. "LEKARZ" = type="reminder", title="Lekarz"',
+  '- Kazdy wpis MUSI miec title (nigdy nie wpisuj null!)',
+  '- Pole person = imie z naglowka kolumny tej osoby',
   '',
-  'Odpowiedz WYLACZNIE jako JSON array:',
+  'WAZNE: Zwroc uwage na pismo odreczne. Jesli nie jestes pewien co jest napisane - napisz dokladnie to co widzisz w polu notes i sprobuj odgadnac typ wpisu.',
+  '',
+  'Odpowiedz WYLACZNIE jako JSON array, zero innych slow:',
   '[{"date":"YYYY-MM-DD","title":"tekst","time":"HH:MM lub null","type":"task|holiday|work|reminder|other","notes":"tekst lub null","person":"imie z naglowka kolumny"}]'
 ].join('\n');
 
@@ -641,18 +644,24 @@ function pickImg(mode){
 }
 function calInfo(n,u){if(confirm('Import z '+n+':\n1. Otwórz '+n+'\n2. Zrób screenshot\n3. Wróć tutaj → Galeria\n\nOtworzyć '+n+'?'))window.open(u,'_blank');}
 
-async function doScan(){
+async function doScan(forceProv){
   if(!b64){toast('Najpierw wybierz zdjęcie');return;}
   const ck=S.claudeKey(), gk=S.geminiKey();
-  if(!ck&&!gk){toast('Brak klucza API — wejdź w Ustawienia');go('settings');return;}
-  const btn=document.getElementById('abtn');
+  // Wybierz provider: jeśli wymuszony użyj go, inaczej Claude > Gemini
+  const prov=forceProv||(ck?'claude':'gemini');
+  const key=prov==='claude'?ck:gk;
+  if(!key){
+    toast('Brak klucza '+(prov==='claude'?'Claude — wklej sk-ant- w Ustawieniach':'Gemini — wklej AIza w Ustawieniach'));
+    go('settings');return;
+  }
+  const btnId=prov==='claude'?'abtn-claude':'abtn-gemini';
+  const btn=document.getElementById(btnId);
   const orig=btn.innerHTML;
   btn.disabled=true;btn.innerHTML='<div class="spin"></div> Analizuję...';
   try{
     let raw;
     const prompt=buildPrompt();
-    // Używaj Claude jeśli jest klucz, w przeciwnym razie Gemini
-    if(ck){
+    if(prov==='claude'){
       const resp=await fetch('https://api.anthropic.com/v1/messages',{
         method:'POST',
         headers:{'Content-Type':'application/json','x-api-key':ck,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
