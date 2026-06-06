@@ -726,7 +726,9 @@ async function doAnalyze(forceProv){
       if(!raw) throw new Error(lastErr||'Gemini niedostępny');
     } else {
       // Claude via Anthropic API (requires key)
-      const key=localStorage.getItem('claude_key')||localStorage.getItem('ant_key')||'';
+      // Get Claude key - only use sk-ant format keys
+      let key=localStorage.getItem('claude_key')||localStorage.getItem('ant_key')||'';
+      if(key.startsWith('AQ.')){key='';} // reject bad format
       if(!key){toast('Brak klucza Claude — wklej w Ustawieniach');go('settings');btn.disabled=false;btn.innerHTML=origHtml;return;}
       const resp=await fetch('https://api.anthropic.com/v1/messages',{
         method:'POST',
