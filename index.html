@@ -593,21 +593,27 @@ let b64='', scanR=[];
 
 // PROMPT - używa zwykłych cudzysłowów, bez backtick, bez ${}
 const PROMPT = [
-  'Przeanalizuj ten papierowy planer/kalendarz i wyodrebnij WSZYSTKIE wpisy dla KAZDEJ osoby.',
+  'Przeanalizuj ten papierowy planer/kalendarz rodzinny.',
   '',
-  'ZASADY INTERPRETACJI (bardzo wazne):',
-  '1. Format godzin pracy: "19-7" oznacza ZAKRES od 19:00 do 07:00 (to NIE jest godzina 19:07!)',
-  '   Wynik: title="Praca nocna", time="19:00", notes="19:00-07:00", type="work"',
-  '2. "7-19" = praca dzienna, title="Praca dzienna", time="07:00", notes="07:00-19:00", type="work"',
-  '3. "BIURO" = praca z biura, type="work", title="Praca z biura"',
-  '4. "X" lub "x" w okienku = urlop, type="holiday", title="Urlop"',
-  '5. Wizyta z godzina np. "BARBER 10:30" = type="reminder", title="Barber", time="10:30"',
-  '6. Wizyta bez godziny np. "LEKARZ" = type="reminder", title="Lekarz"',
-  '7. Kazdy wpis MUSI miec title - nigdy nie wpisuj null jako title!',
-  '8. Kazdy wpis przypisz do osoby (pole person = imie osoby z kalendarza)',
+  'STRUKTURA KALENDARZA:',
+  'Kalendarz ma kolumny - kazda kolumna to JEDNA konkretna osoba.',
+  'Wiersze to dni miesiaca. Komorka na przecieciu wiersza i kolumny to wpis dla TEJ osoby w TYM dniu.',
+  'BARDZO WAZNE: Wszystkie wpisy w jednej kolumnie naleza do tej samej osoby.',
+  'NIE przypisuj wpisow z jednej kolumny do innej osoby.',
+  '',
+  'ZASADY INTERPRETACJI:',
+  '1. "19-7" = ZAKRES GODZIN, praca nocna od 19:00 do 07:00 (NIE godzina 19:07!)',
+  '   -> title="Praca nocna", time="19:00", notes="19:00-07:00", type="work"',
+  '2. "7-19" = praca dzienna -> title="Praca dzienna", time="07:00", notes="07:00-19:00", type="work"',
+  '3. "BIURO" = praca z biura -> type="work", title="Praca z biura"',
+  '4. "X" lub "x" = urlop -> type="holiday", title="Urlop"',
+  '5. "BARBER 10:30" = wizyta -> type="reminder", title="Barber", time="10:30"',
+  '6. "LEKARZ", "DENTYSTA" itp. = wizyta -> type="reminder"',
+  '7. Kazdy wpis MUSI miec title (nigdy null!)',
+  '8. Pole "person" = imie z naglowka kolumny tej osoby',
   '',
   'Odpowiedz WYLACZNIE jako JSON array:',
-  '[{"date":"YYYY-MM-DD","title":"tekst","time":"HH:MM lub null","type":"task|holiday|work|reminder|other","notes":"tekst lub null","person":"imie lub null"}]'
+  '[{"date":"YYYY-MM-DD","title":"tekst","time":"HH:MM lub null","type":"task|holiday|work|reminder|other","notes":"tekst lub null","person":"imie z naglowka kolumny"}]'
 ].join('\n');
 
 function buildPrompt(){
