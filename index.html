@@ -707,7 +707,27 @@ function toast(m){const t=document.getElementById('toast');t.textContent=m;t.cla
 let b64='',scanR=[];
 function pickImg(mode){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';if(mode==='camera')inp.capture='environment';inp.onchange=e=>{const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=ev=>{b64=ev.target.result.split(',')[1];document.getElementById('prev-img').src=ev.target.result;document.getElementById('img-wrap').style.display='block';document.getElementById('res-sec').style.display='none';scanR=[];};r.readAsDataURL(file);};inp.click();}
 function calInfo(n,u){if(confirm(`Import z ${n}:\n\n1. Otwórz ${n}\n2. Zrób screenshot widoku miesiąca\n3. Wróć → Galeria\n\nOtworzyć ${n}?`))window.open(u,'_blank');}
-const PROMPT='Przeanalizuj ten kalendarz i wyodrębnij WSZYSTKIE widoczne wpisy. Odpowiedz WYŁĄCZNIE jako JSON array:\n[{"date":"YYYY-MM-DD","title":"tekst","time":"HH:MM lub null","type":"task|holiday|work|reminder|other","notes":"tekst lub null"}]';
+const PROMPT=`Przeanalizuj ten papierowy kalendarz domowy i wyodrębnij WSZYSTKIE wpisy dla KAŻDEJ osoby widocznej w kalendarzu.
+
+ZASADY INTERPRETACJI:
+1. Każda osoba ma zazwyczaj swój wiersz lub kolumnę w kalendarzu
+2. Godziny pracy: "19-7" = praca od 19:00 do 7:00 (nocna), "7-19" = praca od 7:00 do 19:00, "8-16" = praca 8:00-16:00 itp.
+3. "BIURO" bez godzin = praca z biura (cały dzień), z godzinami np. "BIURO 9-17" = praca z biura 9-17
+4. "X" lub "x" w okienku = urlop (type: "holiday")
+5. Wizyta np. "Barber 10:30" = wizyta u barbera o 10:30 (type: "reminder", time: "10:30")
+6. Samo imię przy dacie = zadanie/wpis dla tej osoby
+7. Jeśli wpis jest w wierszu/kolumnie konkretnej osoby - przypisz go do tej osoby w polu "person"
+
+Odpowiedz WYŁĄCZNIE jako JSON array, zero innych słów:
+[
+  {"date":"YYYY-MM-DD","title":"Praca 19:00-07:00","time":"19:00","type":"work","notes":"zmiana nocna","person":"Łukasz"},
+  {"date":"YYYY-MM-DD","title":"BIURO","time":null,"type":"work","notes":"praca z biura","person":"Łukasz"},
+  {"date":"YYYY-MM-DD","title":"Urlop","time":null,"type":"holiday","notes":null,"person":"Kasia"},
+  {"date":"YYYY-MM-DD","title":"Barber","time":"10:30","type":"reminder","notes":"wizyta u barbera","person":"Łukasz"}
+]
+
+Jeśli nie możesz przypisać wpisu do konkretnej osoby, pomiń pole "person".
+Rok: jeśli nie widać roku użyj bieżącego (2026). Wyodrębnij KAŻDY wpis z każdego dnia.`;
 async function doAnalyze(forceProv){
   if(!b64){toast('Najpierw wybierz zdjęcie');return;}
   const prov=forceProv||S.aiProv();
@@ -757,11 +777,22 @@ async function doAnalyze(forceProv){
       if(d.error)throw new Error(d.error.message);
       raw=d.content?.[0]?.text||'[]';
     }
-    scanR=JSON.parse(raw.replace(/```json|```/g,'').trim()).map((e,i)=>({
-      ...e,id:`sc_${Date.now()}_${i}`,
-      reminders:S.cfg().defaultReminders||['30min'],
-      personId:scanForPerson||null
-    }));
+    const parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    const persons=S.persons();
+    scanR=parsed.map((e,i)=>{
+      // Try to match AI-detected person name to app persons
+      let personId=scanForPerson||null;
+      if(e.person && persons.length){
+        const aiName=(e.person||'').toLowerCase().trim();
+        const match=persons.find(p=>
+          p.name.toLowerCase().includes(aiName) ||
+          aiName.includes(p.name.toLowerCase())
+        );
+        if(match) personId=match.id;
+      }
+      const {person,...rest}=e; // remove 'person' field, use personId instead
+      return {...rest,id:`sc_${Date.now()}_${i}`,reminders:S.cfg().defaultReminders||['30min'],personId};
+    });
     rScanR();
   }catch(e){
     toast('Błąd: '+e.message.slice(0,120));
