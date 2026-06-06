@@ -788,6 +788,8 @@ function toast(m){const t=document.getElementById('toast');t.textContent=m;t.cla
 
 // ── SKANOWANIE ─────────────────────────────────────────
 let b64='', scanR=[];
+let scanFor='auto';
+let isUpdateMode=false;
 
 // PROMPT - używa zwykłych cudzysłowów, bez backtick, bez ${}
 const PROMPT = [
