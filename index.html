@@ -903,7 +903,18 @@ function sM(){
 }
 
 // ── INIT ──────────────────────────────────────────────────
-if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js?v=5').catch(()=>{});
+if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js?v=8').catch(()=>{});
+
+// Wyczyść błędnie zapisane klucze przy starcie
+(function(){
+  ['ant_key','claude_key'].forEach(k=>{
+    const v=localStorage.getItem(k)||'';
+    if(v.startsWith('AQ.')){localStorage.removeItem(k);console.log('Usunięto zły klucz:',k);}
+  });
+  const gk=localStorage.getItem('gemini_key')||'';
+  if(gk.startsWith('sk-')){localStorage.removeItem('gemini_key');}
+})();
+
 reqN();
 renderPersonsBar();
 renderScanPersonChips();
