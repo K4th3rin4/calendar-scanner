@@ -887,25 +887,35 @@ async function doScan(forceProv){
       if(!raw)throw new Error(lastErr||'Gemini niedostępny');
     }
     // Parsuj wynik
-    const parsed=JSON.parse(raw.replace(/```json/g,'').replace(/```/g,'').trim());
-    const persons=S.persons();
-    scanR=parsed.map((e,i)=>{
-      // Napraw title = null
-      let title=e.title;
+    var parsed=JSON.parse(raw.replace(/```json/g,'').replace(/```/g,'').trim());
+    var persons=S.persons();
+    var existing=S.evs();
+    scanR=parsed.map(function(e,i){
+      var title=e.title;
       if(!title||title==='null'||title===null)title=e.notes||'Wpis';
       title=String(title);
-      // Święta są ogólne - bez przypisania do osoby
       if(e.type==='holiday'||e.type==='publicHoliday'){
-        return{...e,title,id:'sc'+Date.now()+i,reminders:[],personId:null};
+        return Object.assign({},e,{title:title,id:'sc'+Date.now()+i,reminders:[],personId:null,_status:'new'});
       }
-      // Dopasuj osobę dla innych wpisów
-      let personId=scanFor==='auto'?null:scanFor;
+      var personId=scanFor==='auto'?null:scanFor;
       if(scanFor==='auto'&&e.person&&persons.length){
-        const pn=String(e.person).toLowerCase().trim();
-        const match=persons.find(p=>pn.includes(p.name.toLowerCase())||p.name.toLowerCase().includes(pn));
+        var pn=String(e.person).toLowerCase().trim();
+        var match=persons.find(function(p){return pn.includes(p.name.toLowerCase())||p.name.toLowerCase().includes(pn);});
         if(match)personId=match.id;
       }
-      return{...e,title,id:'sc'+Date.now()+i,reminders:S.cfg().defaultReminders||['30min'],personId};
+      var status='new',oldTitle=null,oldTime=null;
+      if(isUpdateMode){
+        var found=existing.find(function(ev){
+          return ev.date===e.date&&ev.personId===personId&&ev.type===e.type;
+        });
+        if(found){
+          if(found.title===title&&(found.time||null)===(e.time||null)){status='same';}
+          else{status='changed';oldTitle=found.title;oldTime=found.time||null;}
+        }
+      }
+      return Object.assign({},e,{title:title,id:'sc'+Date.now()+i,
+        reminders:S.cfg().defaultReminders||['30min'],
+        personId:personId,_status:status,_oldTitle:oldTitle,_oldTime:oldTime});
     });
     rScanR();
   }catch(e){toast('Błąd: '+String(e.message).slice(0,100));}
