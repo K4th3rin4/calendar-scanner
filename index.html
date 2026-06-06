@@ -93,26 +93,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .hdot{width:12px;height:12px;border-radius:50%;background:var(--green);flex-shrink:0}
 .ht span{font-size:16px;color:var(--sub);font-weight:500}
 .wdays{display:grid;grid-template-columns:repeat(7,1fr);background:#fff;padding:8px 10px 4px}
-.wdays div{text-align:center;font-size:13px;font-weight:800;color:var(--sub);padding:4px 0}
+.wdays div{text-align:center;font-size:14px;font-weight:800;color:var(--sub);padding:4px 0}
 #cal-grid{display:grid;grid-template-columns:repeat(7,1fr);background:#fff;padding:2px 10px 10px;border-bottom:1.5px solid var(--border)}
 .cd{aspect-ratio:.85;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:5px 2px 2px;cursor:pointer;border-radius:12px}
 .cd:active{background:var(--bg)}
-.dn{font-size:15px;font-weight:600;line-height:1.5}
+.dn{font-size:17px;font-weight:700;line-height:1.5}
 .cd.tod:not(.sel){border:2.5px solid var(--blue)}.cd.tod:not(.sel) .dn{color:var(--blue);font-weight:800}
 .cd.sel{background:var(--blue)}.cd.sel .dn{color:#fff;font-weight:800}
 .cd.wk:not(.sel) .dn,.cd.hd:not(.sel) .dn{color:var(--red)}
-.cdots{display:flex;gap:2px;flex-wrap:wrap;justify-content:center;max-width:30px;margin-top:2px}
-.cdot{width:6px;height:6px;border-radius:50%}
+.cdots{display:flex;gap:3px;flex-wrap:wrap;justify-content:center;max-width:36px;margin-top:3px}
+.cdot{width:9px;height:9px;border-radius:50%}
+.cdot-emoji{font-size:11px;line-height:1}
 .dh{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px}
 .dtl{font-size:17px;font-weight:700;text-transform:capitalize;flex:1}
 .badd{background:var(--blue);color:#fff;border:none;border-radius:24px;padding:10px 24px;font-size:16px;font-weight:700;cursor:pointer}
 #devs{padding:0 16px}
 .ec{background:#fff;border-radius:14px;padding:16px 18px;margin-bottom:12px;border-left:6px solid;box-shadow:0 2px 6px rgba(0,0,0,.06);display:flex;align-items:flex-start;gap:12px}
 .eb{flex:1;min-width:0}
-.ett{font-size:18px;font-weight:700}
-.em{font-size:15px;color:var(--sub);margin-top:4px}
-.ebadge{font-size:13px;font-weight:700;padding:4px 12px;border-radius:14px;margin-top:8px;display:inline-block}
-.eptag{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700;padding:3px 10px;border-radius:12px;margin-top:6px;margin-left:4px}
+.ett{font-size:19px;font-weight:700}
+.em{font-size:16px;color:var(--sub);margin-top:4px}
+.ebadge{font-size:14px;font-weight:700;padding:5px 14px;border-radius:14px;margin-top:8px;display:inline-block}
+.eptag{display:inline-flex;align-items:center;gap:5px;font-size:14px;font-weight:700;padding:4px 12px;border-radius:12px;margin-top:6px;margin-left:4px}
 .eas{display:flex;gap:8px;flex-shrink:0;padding-top:2px}
 .eab{background:none;border:none;cursor:pointer;padding:8px;border-radius:10px;line-height:0}
 .chint{font-size:14px;color:#C0C6D0;text-align:center;padding:10px 0 6px}
@@ -769,7 +770,16 @@ function rCal(){
     const el=document.createElement('div');
     el.className='cd'+(ds===today?' tod':'')+(ds===selDay?' sel':'')+(dow===0||dow===6?' wk':'')+(hSet.has(ds)?' hd':'');
     el.onclick=(function(s){return function(){selDay=s;rCal();rDE();};})(ds);
-    el.innerHTML='<span class="dn">'+d+'</span><div class="cdots">'+dE.slice(0,4).map(e=>'<div class="cdot" style="background:'+(e.personId?pColor(e.personId):(TC[e.type]||'#888'))+'"></div>').join('')+'</div>';
+    // Dla każdego wpisu pokaż emoji osoby lub kolorową kropkę
+    var dotsHtml=dE.slice(0,4).map(function(e){
+      var person=e.personId?getPerson(e.personId):null;
+      if(person&&person.emoji){
+        return '<span class="cdot-emoji" title="'+person.name+'">'+person.emoji+'</span>';
+      }
+      var color=person?person.color:(TC[e.type]||'#888');
+      return '<div class="cdot" style="background:'+color+'"></div>';
+    }).join('');
+    el.innerHTML='<span class="dn">'+d+'</span><div class="cdots">'+dotsHtml+'</div>';
     g.appendChild(el);
   }
   rDE();
