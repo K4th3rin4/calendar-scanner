@@ -267,11 +267,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
       <button class="btn" id="analyze-gemini" onclick="doAnalyze('gemini')" style="background:#16A34A">
         <svg style="width:24px;height:24px;stroke:#fff;fill:none;stroke-width:2" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-        ✨ Analizuj — Gemini (darmowy)
+        ✨ Gemini Flash (wymaga klucza AIza...)
       </button>
       <button class="btn" id="analyze-claude" onclick="doAnalyze('claude')" style="background:#7C3AED">
         <svg style="width:24px;height:24px;stroke:#fff;fill:none;stroke-width:2" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-        🤖 Analizuj — Claude (płatny)
+        🤖 Claude (wymaga klucza sk-ant...)
       </button>
     </div>
   </div>
@@ -696,46 +696,58 @@ const PROMPT='Przeanalizuj ten kalendarz i wyodrębnij WSZYSTKIE widoczne wpisy.
 async function doAnalyze(forceProv){
   if(!b64){toast('Najpierw wybierz zdjęcie');return;}
   const prov=forceProv||S.aiProv();
-  const key=prov==='gemini'
-    ? (localStorage.getItem('gemini_key')||'')
-    : (localStorage.getItem('claude_key')||localStorage.getItem('ant_key')||'');
-  if(!key){
-    if(prov==='gemini') toast('Brak klucza Gemini — wklej w Ustawieniach → Gemini');
-    else toast('Brak klucza Claude — wklej w Ustawieniach → Claude');
-    go('settings');return;
-  }
   const btnId=prov==='gemini'?'analyze-gemini':'analyze-claude';
   const btn=document.getElementById(btnId);
   const origHtml=btn.innerHTML;
   btn.disabled=true;
-  btn.innerHTML=`<div class="spin"></div> Analizuję (${prov==='gemini'?'Gemini':'Claude'})...`;
+  btn.innerHTML='<div class="spin"></div> Analizuję...';
   try{
     let raw;
     if(prov==='gemini'){
-      // Try models in order until one works
-      const models=['gemini-1.5-flash','gemini-1.5-flash-latest','gemini-2.0-flash','gemini-1.0-pro-vision'];
+      const key=localStorage.getItem('gemini_key')||'';
+      if(!key){toast('Brak klucza Gemini — wklej w Ustawieniach');go('settings');btn.disabled=false;btn.innerHTML=origHtml;return;}
+      const models=['gemini-1.5-flash','gemini-1.5-flash-latest','gemini-2.0-flash'];
       let lastErr='';
       for(const model of models){
         try{
-          const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{inline_data:{mime_type:'image/jpeg',data:b64}},{text:PROMPT}]}]})});
+          const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,{
+            method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({contents:[{parts:[
+              {inline_data:{mime_type:'image/jpeg',data:b64}},
+              {text:PROMPT}
+            ]}]})
+          });
           const d=await resp.json();
-          if(d.error){lastErr=model+': '+d.error.message;continue;}
+          if(d.error){lastErr=d.error.message;continue;}
           raw=d.candidates?.[0]?.content?.parts?.[0]?.text||'[]';
-          console.log('Success with model:',model);
           break;
-        }catch(e){lastErr=model+': '+e.message;continue;}
+        }catch(e){lastErr=e.message;continue;}
       }
-      if(!raw) throw new Error('Wszystkie modele Gemini niedostępne. Ostatni błąd: '+lastErr);
-    }else{
-      const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-opus-4-5',max_tokens:2000,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},{type:'text',text:PROMPT}]}]})});
-      const d=await resp.json();if(d.error)throw new Error(d.error.message);raw=d.content?.[0]?.text||'[]';
+      if(!raw) throw new Error(lastErr||'Gemini niedostępny');
+    } else {
+      // Claude via Anthropic API (requires key)
+      const key=localStorage.getItem('claude_key')||localStorage.getItem('ant_key')||'';
+      if(!key){toast('Brak klucza Claude — wklej w Ustawieniach');go('settings');btn.disabled=false;btn.innerHTML=origHtml;return;}
+      const resp=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body:JSON.stringify({model:'claude-opus-4-5',max_tokens:2000,messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},
+          {type:'text',text:PROMPT}
+        ]}]})
+      });
+      const d=await resp.json();
+      if(d.error)throw new Error(d.error.message);
+      raw=d.content?.[0]?.text||'[]';
     }
-    scanR=JSON.parse(raw.replace(/```json|```/g,'').trim()).map((e,i)=>({...e,id:`sc_${Date.now()}_${i}`,reminders:S.cfg().defaultReminders||['30min'],personId:scanForPerson||null}));
+    scanR=JSON.parse(raw.replace(/```json|```/g,'').trim()).map((e,i)=>({
+      ...e,id:`sc_${Date.now()}_${i}`,
+      reminders:S.cfg().defaultReminders||['30min'],
+      personId:scanForPerson||null
+    }));
     rScanR();
   }catch(e){
-    const msg = e.message||String(e);
-    console.error('FULL ERROR:', msg);
-    toast('Błąd: '+msg.slice(0,120));
+    toast('Błąd: '+e.message.slice(0,120));
   }
   btn.disabled=false;btn.innerHTML=origHtml;
 }
