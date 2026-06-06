@@ -709,93 +709,24 @@ function pickImg(mode){const inp=document.createElement('input');inp.type='file'
 function calInfo(n,u){if(confirm(`Import z ${n}:\n\n1. Otwórz ${n}\n2. Zrób screenshot widoku miesiąca\n3. Wróć → Galeria\n\nOtworzyć ${n}?`))window.open(u,'_blank');}
 const PROMPT=`Przeanalizuj ten papierowy planer/kalendarz i wyodrębnij WSZYSTKIE wpisy dla KAŻDEJ osoby.
 
-ZASADY INTERPRETACJI (stosuj ściśle):
-1. Każda osoba ma zazwyczaj swój wiersz lub kolumnę — przypisz każdy wpis do konkretnej osoby (pole "person" = imię)
-2. "19-7" lub "19:00-7:00" → type:"work", title:"Praca nocna", time:"19:00", notes:"Zmiana nocna 19:00-07:00"
-3. "7-19" lub "7:00-19:00" → type:"work", title:"Praca dzienna", time:"07:00", notes:"Zmiana dzienna 07:00-19:00"
-4. "BIURO" (samo lub z godzinami) → type:"work", title:"Praca z biura", notes:"Biuro"
-5. "X" lub "x" w okienku → type:"holiday", title:"Urlop"
-6. Wizyta z godziną np. "BARBER 10:30", "LEKARZ 14:00" → type:"reminder", title:"Barber"/"Lekarz", time:"10:30"/"14:00"
-7. Wizyta bez godziny np. "BARBER", "DENTYSTA" → type:"reminder", title nazwa wizyty
-8. Inne zadania/notatki → type:"task"
+BARDZO WAŻNE ZASADY — stosuj dokładnie:
 
-FORMAT ODPOWIEDZI — WYŁĄCZNIE JSON array, zero innych słów:
-[{"date":"YYYY-MM-DD","title":"tekst","time":"HH:MM lub null","type":"task|holiday|work|reminder|other","notes":"tekst lub null","person":"imię osoby lub null"}]
+FORMAT GODZIN PRACY: "19-7" oznacza ZAKRES GODZIN od 19:00 do 7:00, NIE jest to pojedyncza godzina 19:07!
+- "19-7" → zmiana nocna, title:"Praca nocna", time:"19:00", notes:"19:00-07:00"
+- "7-19" → zmiana dzienna, title:"Praca dzienna", time:"07:00", notes:"07:00-19:00"
+- "8-16" → zmiana, title:"Praca", time:"08:00", notes:"08:00-16:00"
+- "BIURO" → title:"Praca z biura", type:"work"
+- "BIURO 9-17" → title:"Praca z biura", time:"09:00", notes:"09:00-17:00", type:"work"
+- "X" lub "x" → title:"Urlop", type:"holiday"
+- "BARBER 10:30" → title:"Barber", time:"10:30", type:"reminder"
+- "LEKARZ", "DENTYSTA" itp. → type:"reminder"
 
-Jeśli widzisz tylko dzień miesiąca bez roku/miesiąca — użyj aktualnego roku i miesiąca widocznego w kalendarzu.`
-async function doAnalyze(forceProv){
-  if(!b64){toast('Najpierw wybierz zdjęcie');return;}
-  const prov=forceProv||S.aiProv();
-  const btnId=prov==='gemini'?'analyze-gemini':'analyze-claude';
-  const btn=document.getElementById(btnId);
-  const origHtml=btn.innerHTML;
-  btn.disabled=true;
-  btn.innerHTML='<div class="spin"></div> Analizuję...';
-  try{
-    let raw;
-    if(prov==='gemini'){
-      const key=localStorage.getItem('gemini_key')||'';
-      if(!key){toast('Brak klucza Gemini — wklej w Ustawieniach');go('settings');btn.disabled=false;btn.innerHTML=origHtml;return;}
-      const models=['gemini-1.5-flash','gemini-1.5-flash-latest','gemini-2.0-flash'];
-      let lastErr='';
-      for(const model of models){
-        try{
-          const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,{
-            method:'POST',headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({contents:[{parts:[
-              {inline_data:{mime_type:'image/jpeg',data:b64}},
-              {text:PROMPT}
-            ]}]})
-          });
-          const d=await resp.json();
-          if(d.error){lastErr=d.error.message;continue;}
-          raw=d.candidates?.[0]?.content?.parts?.[0]?.text||'[]';
-          break;
-        }catch(e){lastErr=e.message;continue;}
-      }
-      if(!raw) throw new Error(lastErr||'Gemini niedostępny');
-    } else {
-      // Claude via Anthropic API (requires key)
-      // Get Claude key - only use sk-ant format keys
-      let key=localStorage.getItem('claude_key')||localStorage.getItem('ant_key')||'';
-      if(key.startsWith('AQ.')){key='';} // reject bad format
-      if(!key){toast('Brak klucza Claude — wklej w Ustawieniach');go('settings');btn.disabled=false;btn.innerHTML=origHtml;return;}
-      const resp=await fetch('https://api.anthropic.com/v1/messages',{
-        method:'POST',
-        headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-        body:JSON.stringify({model:'claude-haiku-4-5',max_tokens:2000,messages:[{role:'user',content:[
-          {type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},
-          {type:'text',text:PROMPT}
-        ]}]})
-      });
-      const d=await resp.json();
-      if(d.error)throw new Error(d.error.message);
-      raw=d.content?.[0]?.text||'[]';
-    }
-    const parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());
-    const persons=S.persons();
-    scanR=parsed.map((e,i)=>{
-      // Try to match AI-detected person name to app persons
-      let personId=scanForPerson||null;
-      if(e.person && persons.length){
-        const aiName=(e.person||'').toLowerCase().trim();
-        const match=persons.find(p=>
-          p.name.toLowerCase().includes(aiName) ||
-          aiName.includes(p.name.toLowerCase())
-        );
-        if(match) personId=match.id;
-      }
-      const {person,...rest}=e; // remove 'person' field, use personId instead
-      return {...rest,id:`sc_${Date.now()}_${i}`,reminders:S.cfg().defaultReminders||['30min'],personId};
-    });
-    rScanR();
-  }catch(e){
-    toast('Błąd: '+e.message.slice(0,120));
-  }
-  btn.disabled=false;btn.innerHTML=origHtml;
-}
-function rScanR(){
-  document.getElementById('res-ttl').textContent=`Znalezione wpisy (${scanR.length})`;
+KLUCZOWE: Każdy wpis MUSI mieć tytuł (nigdy nie wpisuj "null" jako title). Jeśli nie wiesz jak nazwać — użyj treści wpisu jako tytułu.
+
+Każdy wpis przypisz do osoby z kalendarza (pole "person" = imię widoczne w kalendarzu).
+
+ODPOWIEDŹ — WYŁĄCZNIE JSON array, zero innych słów:
+[{"date":"YYYY-MM-DD","title":"Praca nocna","time":"19:00","type":"work","notes":"19:00-07:00","person":"Łukasz"}]`
   document.getElementById('res-list').innerHTML=scanR.map((ev,i)=>{
     const c=TC[ev.type]||'#888';const p=getPerson(ev.personId);
     return`<div class="rc"><div class="rc-top"><span class="badge" style="background:${c}20;color:${c}">${TE[ev.type]||'📌'} ${TL[ev.type]||ev.type}</span>${p?`<span class="badge" style="background:${p.color}20;color:${p.color}">${p.emoji} ${p.name}</span>`:''}<button class="btd" onclick="rmScan(${i})">✕</button></div><div class="rc-date">${ev.date||'?'}${ev.time?' · '+ev.time:''}</div><div class="rc-title">${ev.title}</div><div class="rc-acts"><button class="bte" onclick="editScan(${i})">✏️ Edytuj</button></div></div>`;
