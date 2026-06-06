@@ -712,8 +712,20 @@ async function doAnalyze(forceProv){
   try{
     let raw;
     if(prov==='gemini'){
-      const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{inline_data:{mime_type:'image/jpeg',data:b64}},{text:PROMPT}]}]})});
-      const d=await resp.json();if(d.error)throw new Error(d.error.message);raw=d.candidates?.[0]?.content?.parts?.[0]?.text||'[]';
+      // Try models in order until one works
+      const models=['gemini-1.5-flash','gemini-1.5-flash-latest','gemini-2.0-flash','gemini-1.0-pro-vision'];
+      let lastErr='';
+      for(const model of models){
+        try{
+          const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{inline_data:{mime_type:'image/jpeg',data:b64}},{text:PROMPT}]}]})});
+          const d=await resp.json();
+          if(d.error){lastErr=model+': '+d.error.message;continue;}
+          raw=d.candidates?.[0]?.content?.parts?.[0]?.text||'[]';
+          console.log('Success with model:',model);
+          break;
+        }catch(e){lastErr=model+': '+e.message;continue;}
+      }
+      if(!raw) throw new Error('Wszystkie modele Gemini niedostępne. Ostatni błąd: '+lastErr);
     }else{
       const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-opus-4-5',max_tokens:2000,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},{type:'text',text:PROMPT}]}]})});
       const d=await resp.json();if(d.error)throw new Error(d.error.message);raw=d.content?.[0]?.text||'[]';
@@ -723,8 +735,7 @@ async function doAnalyze(forceProv){
   }catch(e){
     const msg = e.message||String(e);
     console.error('FULL ERROR:', msg);
-    // Show full error in alert so we can see it
-    alert('PEŁNY BŁĄD:\n\nProvider: ' + prov + '\nKlucz (pierwsze 8 znaków): ' + key.slice(0,8) + '...\n\nBłąd: ' + msg);
+    toast('Błąd: '+msg.slice(0,120));
   }
   btn.disabled=false;btn.innerHTML=origHtml;
 }
