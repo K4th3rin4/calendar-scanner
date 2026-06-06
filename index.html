@@ -338,8 +338,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         </div>
         <div class="klbl" style="color:#166534">Klucz z <a href="https://aistudio.google.com/apikey" target="_blank" style="color:#16A34A">aistudio.google.com/apikey</a></div>
         <div class="kr" style="margin-top:8px">
-          <input class="ki" id="ki-gemini" type="password" placeholder="AIza...">
-          <button class="ks" style="background:#16A34A" onclick="saveKeyFor('gemini')">Zapisz</button>
+          <input class="ki" id="ki-gemini" type="text" placeholder="AIzaSy..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+          <button class="ks" style="background:#16A34A" onclick="
+            var v=document.getElementById('ki-gemini').value.trim();
+            if(!v){toast('Wklej klucz');return;}
+            localStorage.setItem('gemini_key',v);
+            document.getElementById('kst-gemini').textContent='✓ Klucz Gemini zapisany';
+            document.getElementById('kst-gemini').className='kst ok';
+            toast('Klucz Gemini zapisany ✓');
+          ">Zapisz</button>
         </div>
         <div class="kst" id="kst-gemini"></div>
       </div>
@@ -350,8 +357,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         </div>
         <div class="klbl">Klucz z <a href="https://console.anthropic.com" target="_blank" style="color:#7C3AED">console.anthropic.com</a></div>
         <div class="kr" style="margin-top:8px">
-          <input class="ki" id="ki-claude" type="password" placeholder="sk-ant-api03-...">
-          <button class="ks" style="background:#7C3AED" onclick="saveKeyFor('claude')">Zapisz</button>
+          <input class="ki" id="ki-claude" type="text" placeholder="sk-ant-api03-..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+          <button class="ks" style="background:#7C3AED" onclick="
+            var v=document.getElementById('ki-claude').value.trim();
+            if(!v){toast('Wklej klucz');return;}
+            localStorage.setItem('claude_key',v);
+            localStorage.setItem('ant_key',v);
+            document.getElementById('kst-claude').textContent='✓ Klucz Claude zapisany';
+            document.getElementById('kst-claude').className='kst ok';
+            toast('Klucz Claude zapisany ✓');
+          ">Zapisz</button>
         </div>
         <div class="kst" id="kst-claude"></div>
       </div>
