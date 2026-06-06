@@ -950,9 +950,27 @@ function rAg(){
   list.innerHTML=Object.keys(byM).sort().map(k=>{
     const parts=k.split('-'),y=Number(parts[0]),m=Number(parts[1]);
     return '<div class="mhdr">'+PLM[m-1]+' '+y+'</div>'+byM[k].map(ev=>{
-      const p2=ev.personId?getPerson(ev.personId):null;
-      const c=p2?p2.color:(TC[ev.type]||'#888');
-      return '<div class="ac" style="border-left-color:'+c+'"><div class="ai-ic" style="background:'+c+'15;color:'+c+'"><svg viewBox="0 0 24 24">'+tP(ev.type)+'</svg></div><div class="ab"><div class="at">'+ev.title+(p2?' <span style="font-size:13px;color:'+p2.color+'">'+p2.emoji+'</span>':'')+'</div><div class="am">'+(ev.date||'?')+(ev.time?' · '+ev.time:'')+(ev.isOcc?' · 🔁':'')+'</div>'+(ev.notes?'<div class="am">'+ev.notes+'</div>':'')+'</div><button class="adl" onclick="delEv(\''+(ev.origId||ev.id)+'\')"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H8L5 6"/></svg></button></div>';
+      var p2=ev.personId?getPerson(ev.personId):null;
+      var borderColor=p2?p2.color:(TC[ev.type]||'#888');
+      var bgColor=p2?p2.color+'22':(TC[ev.type]||'#888')+'10';
+      var iconHtml=p2
+        ?'<span style="font-size:24px;line-height:1">'+p2.emoji+'</span>'
+        :'<svg viewBox="0 0 24 24">'+tP(ev.type)+'</svg>';
+      var personLine=p2
+        ?'<div class="am" style="color:'+p2.color+';font-weight:800">'+p2.emoji+' '+p2.name+'</div>'
+        :'';
+      return '<div class="ac" style="border-left-color:'+borderColor+';background:'+bgColor+'">'
+        +'<div class="ai-ic" style="background:'+borderColor+'30;color:'+borderColor+'">'+iconHtml+'</div>'
+        +'<div class="ab">'
+          +'<div class="at">'+ev.title+'</div>'
+          +personLine
+          +'<div class="am">'+(ev.date||'?')+(ev.time?' · '+ev.time:'')+(ev.isOcc?' · 🔁':'')+'</div>'
+          +(ev.notes?'<div class="am">'+ev.notes+'</div>':'')
+        +'</div>'
+        +'<button class="adl" data-id="'+(ev.origId||ev.id)+'" data-action="del">'
+          +'<svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H8L5 6"/></svg>'
+        +'</button>'
+      +'</div>';
     }).join('');
   }).join('');
   list.onclick=function(e){const btn=e.target.closest('[data-action]');if(!btn)return;if(btn.dataset.action==='del')delEv(btn.dataset.id);};
