@@ -532,20 +532,24 @@ function renderScanPersonChips(){
   const persons=S.persons();
   const container=document.getElementById('scan-person-chips');
   if(!persons.length){
-    container.innerHTML='<div style="color:var(--sub);font-size:14px">Dodaj osoby w Ustawieniach</div>';
-    scanForPerson=null; return;
+    container.innerHTML='<div style="color:var(--sub);font-size:14px">Dodaj osoby w Ustawieniach aby przypisywać wpisy</div>';
+    scanForPerson='auto'; return;
   }
-  if(!scanForPerson) scanForPerson=persons[0]?.id||null;
-  container.innerHTML=persons.map(p=>`
+  if(!scanForPerson) scanForPerson='auto';
+  const autoOn=scanForPerson==='auto';
+  let html=`<div class="psc${autoOn?' on':''}" style="${autoOn?'border-color:#4A5FC1;background:#4A5FC118;color:#4A5FC1':''}" onclick="setScanPerson('auto','#4A5FC1')">
+    <div class="dot" style="background:#4A5FC1"></div>👥 Wszyscy naraz
+  </div>`;
+  html+=persons.map(p=>`
     <div class="psc${scanForPerson===p.id?' on':''}" style="${scanForPerson===p.id?`border-color:${p.color};background:${p.color}18;color:${p.color}`:''}" onclick="setScanPerson('${p.id}','${p.color}')">
       <div class="dot" style="background:${p.color}"></div>${p.name}
     </div>`).join('');
+  container.innerHTML=html;
 }
 
-let scanForPerson=null;
+let scanForPerson='auto';
 function setScanPerson(id, color){
   scanForPerson=id;
-  document.querySelectorAll('.psc').forEach(el=>el.classList.remove('on'));
   renderScanPersonChips();
 }
 
@@ -651,7 +655,14 @@ function toast(m){const t=document.getElementById('toast');t.textContent=m;t.cla
 let b64='',scanR=[];
 function pickImg(mode){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';if(mode==='camera')inp.capture='environment';inp.onchange=e=>{const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=ev=>{b64=ev.target.result.split(',')[1];document.getElementById('prev-img').src=ev.target.result;document.getElementById('img-wrap').style.display='block';document.getElementById('res-sec').style.display='none';scanR=[];};r.readAsDataURL(file);};inp.click();}
 function calInfo(n,u){if(confirm(`Import z ${n}:\n\n1. Otwórz ${n}\n2. Zrób screenshot widoku miesiąca\n3. Wróć → Galeria\n\nOtworzyć ${n}?`))window.open(u,'_blank');}
-const PROMPT='Przeanalizuj ten papierowy planer/kalendarz i wyodrebnij WSZYSTKIE wpisy dla KAZDEJ osoby widocznej na stronie.\n\nZASADY INTERPRETACJI:\n1. Format godzin pracy: "19-7" = praca NOCNA od 19:00 do 07:00 (to zakres, NIE godzina 19:07!). Ustaw title:"Praca nocna", time:"19:00", notes:"19:00-07:00", type:"work"\n2. "7-19" = praca DZIENNA od 07:00 do 19:00. title:"Praca dzienna", time:"07:00", notes:"07:00-19:00", type:"work"\n3. "BIURO" = praca z biura, type:"work", title:"Praca z biura"\n4. "X" lub "x" w okienku = urlop, type:"holiday", title:"Urlop"\n5. Wizyta z godzina np. "BARBER 10:30" = type:"reminder", title:"Barber", time:"10:30"\n6. Wizyta bez godziny np. "LEKARZ" = type:"reminder", title:"Lekarz"\n7. Kazdy wpis MUSI miec title (nigdy nie uzywaj null jako title!)\n8. Przypisz kazdy wpis do osoby (pole person = imie osoby z kalendarza)\n\nOdpowiedz WYLACZNIE jako JSON array:\n[{"date":"YYYY-MM-DD","title":"tekst","time":"HH:MM lub null","type":"task|holiday|work|reminder|other","notes":"tekst lub null","person":"imie lub null"}]';
+const PROMPT_BASE='Przeanalizuj ten papierowy planer/kalendarz i wyodrebnij WSZYSTKIE wpisy dla KAZDEJ osoby.\n\nZASADY INTERPRETACJI:\n1. "19-7" = praca NOCNA od 19:00 do 07:00 (zakres godzin, NIE godzina 19:07!), title:"Praca nocna", time:"19:00", notes:"19:00-07:00", type:"work"\n2. "7-19" = praca DZIENNA, title:"Praca dzienna", time:"07:00", notes:"07:00-19:00", type:"work"\n3. "BIURO" = praca z biura, type:"work", title:"Praca z biura"\n4. "X" lub "x" = urlop, type:"holiday", title:"Urlop"\n5. Wizyta z godzina np. "BARBER 10:30" = type:"reminder", title:"Barber", time:"10:30"\n6. Wizyta bez godziny = type:"reminder"\n7. Kazdy wpis MUSI miec title (nigdy null!)\n\nOdpowiedz WYLACZNIE jako JSON array:\n[{"date":"YYYY-MM-DD","title":"tekst","time":"HH:MM lub null","type":"task|holiday|work|reminder|other","notes":"tekst lub null","person":"imie osoby z kalendarza lub null"}]';
+function buildPrompt(persons, mode){
+  if(mode==='auto' && persons.length){
+    const names=persons.map(p=>p.name).join(', ');
+    return PROMPT_BASE.replace('KAZDEJ osoby','KAZDEJ osoby. Znane osoby w kalendarzu to: '+names+'. Przypisz kazdy wpis do jednej z tych osob jesli to mozliwe.');
+  }
+  return PROMPT_BASE;
+}
 async function doAnalyze(){
   if(!b64){toast('Najpierw wybierz zdjęcie');return;}
   const key=S.key();if(!key){toast('Brak klucza API — przejdź do Ustawień');go('settings');return;}
@@ -660,10 +671,10 @@ async function doAnalyze(){
   try{
     const prov=S.aiProv();let raw;
     if(prov==='gemini'){
-      const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{inline_data:{mime_type:'image/jpeg',data:b64}},{text:PROMPT}]}]})});
+      const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{inline_data:{mime_type:'image/jpeg',data:b64}},{text:buildPrompt(S.persons(),scanForPerson)}]}]})});
       const d=await resp.json();if(d.error)throw new Error(d.error.message);raw=d.candidates?.[0]?.content?.parts?.[0]?.text||'[]';
     }else{
-      const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-opus-4-5',max_tokens:2000,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},{type:'text',text:PROMPT}]}]})});
+      const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-opus-4-5',max_tokens:2000,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},{type:'text',text:buildPrompt(S.persons(),scanForPerson)}]}]})});
       const d=await resp.json();if(d.error)throw new Error(d.error.message);raw=d.content?.[0]?.text||'[]';
     }
     scanR=JSON.parse(raw.replace(/```json|```/g,'').trim()).map((e,i)=>({...e,id:`sc_${Date.now()}_${i}`,reminders:S.cfg().defaultReminders||['30min'],personId:scanForPerson||null}));
