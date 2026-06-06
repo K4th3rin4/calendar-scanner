@@ -156,7 +156,14 @@ body.dark #nav{background:#1C1F2E;box-shadow:0 -2px 16px rgba(0,0,0,.4)}
 #prev-img{width:100%;border-radius:16px;max-height:280px;object-fit:contain;background:#E5E7EB;display:block}
 #res-sec{margin:0 16px;display:none}
 #res-ttl{font-size:20px;font-weight:800;margin-bottom:14px}
-.rc{background:#fff;border-radius:16px;padding:18px;margin-bottom:12px;box-shadow:0 2px 6px rgba(0,0,0,.07)}
+.rc{background:var(--card);border-radius:16px;padding:18px;margin-bottom:12px;box-shadow:0 2px 6px rgba(0,0,0,.07)}
+.rc.status-new{border-left:5px solid var(--green)}
+.rc.status-changed{border-left:5px solid var(--amber)}
+.rc.status-same{border-left:5px solid var(--border);opacity:.7}
+.status-tag{font-size:13px;font-weight:800;padding:3px 10px;border-radius:10px;display:inline-block;margin-bottom:8px}
+.status-tag.new{background:rgba(22,163,74,.15);color:var(--green)}
+.status-tag.changed{background:rgba(217,119,6,.15);color:var(--amber)}
+.status-tag.same{background:var(--bg);color:var(--sub)}
 .rc-top{display:flex;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px}
 .rc-date{font-size:17px;color:var(--sub);margin-bottom:6px}
 .rc-title{font-size:20px;font-weight:700;margin-bottom:10px}
@@ -293,8 +300,18 @@ body.dark #nav{background:#1C1F2E;box-shadow:0 -2px 16px rgba(0,0,0,.4)}
     <p>Zrób zdjęcie lub wgraj screenshot — AI odczyta wszystkie wpisy</p>
   </div>
   <div class="scan-for">
-    <div class="scan-for-lbl">Dla kogo skanujemy?</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="scan-for-lbl" style="margin:0">Dla kogo skanujemy?</div>
+      <div style="display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;color:var(--sub);cursor:pointer" onclick="toggleUpdateMode()">
+        <div class="tog" id="update-tog"></div>
+        <span id="update-lbl">Tryb aktualizacji</span>
+      </div>
+    </div>
     <div id="scan-chips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+    <div id="update-info" style="display:none;margin-top:10px;padding:10px 14px;background:var(--amber);background:rgba(217,119,6,.12);border-radius:10px;border-left:4px solid var(--amber)">
+      <div style="font-size:15px;font-weight:700;color:var(--amber)">🔄 Tryb aktualizacji aktywny</div>
+      <div style="font-size:14px;color:var(--sub);margin-top:3px">AI porówna zdjęcie z istniejącymi wpisami i pokaże tylko zmiany</div>
+    </div>
   </div>
   <div class="sgrid">
     <button class="sb sb-b" onclick="pickImg('camera')">
@@ -896,26 +913,115 @@ async function doScan(forceProv){
 }
 
 function rScanR(){
-  document.getElementById('res-ttl').textContent='Znalezione wpisy ('+scanR.length+')';
-  document.getElementById('res-list').innerHTML=scanR.map((ev,i)=>{
-    const c=TC[ev.type]||'#888';
-    const p=ev.personId?getPerson(ev.personId):null;
-    return '<div class="rc"><div class="rc-top"><span class="badge" style="background:'+c+'20;color:'+c+'">'+(TE[ev.type]||'📌')+' '+(TL[ev.type]||ev.type)+'</span>'+(p?'<span class="badge" style="background:'+p.color+'20;color:'+p.color+'">'+p.emoji+' '+p.name+'</span>':'')+'<button class="btd" onclick="rmScan('+i+')">✕</button></div><div class="rc-date">'+(ev.date||'?')+(ev.time?' · '+ev.time:'')+'</div><div class="rc-title">'+ev.title+'</div><div class="rc-acts"><button class="bte" onclick="editScan('+i+')">✏️ Edytuj</button></div></div>';
-  }).join('');
+  var existing=S.evs();
+  // Policz statusy
+  var newCount=0,changedCount=0,sameCount=0;
+  scanR.forEach(function(ev){
+    var s=ev._status;
+    if(s==='new')newCount++;
+    else if(s==='changed')changedCount++;
+    else sameCount++;
+  });
+
+  var ttl='Znalezione wpisy ('+scanR.length+')';
+  if(isUpdateMode) ttl='🔄 Zmiany: '+newCount+' nowych · '+changedCount+' zmienionych · '+sameCount+' bez zmian';
+  document.getElementById('res-ttl').textContent=ttl;
+
+  var listEl=document.getElementById('res-list');
+  listEl.innerHTML='';
+  scanR.forEach(function(ev,i){
+    var c=TC[ev.type]||'#888';
+    var p=ev.personId?getPerson(ev.personId):null;
+    var status=ev._status||'new';
+    var statusHtml='';
+    if(isUpdateMode){
+      if(status==='new') statusHtml='<span class="status-tag new">➕ Nowy</span>';
+      else if(status==='changed') statusHtml='<span class="status-tag changed">✏️ Zmieniony</span>';
+      else statusHtml='<span class="status-tag same">✓ Bez zmian</span>';
+    }
+    var oldTitleHtml='';
+    if(status==='changed'&&ev._oldTitle){
+      oldTitleHtml='<div style="font-size:15px;color:var(--sub);text-decoration:line-through;margin-bottom:3px">'+ev._oldTitle+(ev._oldTime?' '+ev._oldTime:'')+'</div>';
+    }
+    var div=document.createElement('div');
+    div.className='rc status-'+status;
+    div.innerHTML=statusHtml
+      +'<div class="rc-top">'
+        +'<span class="badge" style="background:'+c+'20;color:'+c+'">'+(TE[ev.type]||'📌')+' '+(TL[ev.type]||ev.type)+'</span>'
+        +(p?'<span class="badge" style="background:'+p.color+'20;color:'+p.color+'">'+p.emoji+' '+p.name+'</span>':'')
+        +'<button class="btd" data-idx="'+i+'">✕</button>'
+      +'</div>'
+      +oldTitleHtml
+      +'<div class="rc-date">'+(ev.date||'?')+(ev.time?' · '+ev.time:'')+'</div>'
+      +'<div class="rc-title">'+ev.title+'</div>'
+      +'<div class="rc-acts"><button class="bte" data-idx="'+i+'">✏️ Edytuj</button></div>';
+    listEl.appendChild(div);
+  });
+
+  // Event delegation dla listy wyników
+  listEl.onclick=function(e){
+    var delBtn=e.target.closest('.btd');
+    if(delBtn){rmScan(Number(delBtn.dataset.idx));return;}
+    var editBtn=e.target.closest('.bte');
+    if(editBtn){editScan(Number(editBtn.dataset.idx));return;}
+  };
+
   document.getElementById('res-sec').style.display='block';
+
+  // W trybie aktualizacji - pokaż tylko nowe i zmienione domyślnie
+  if(isUpdateMode&&sameCount>0){
+    var info=document.createElement('div');
+    info.style.cssText='font-size:15px;color:var(--sub);text-align:center;padding:8px;cursor:pointer';
+    info.textContent='Pokaż też '+sameCount+' wpisów bez zmian ▾';
+    var showingAll=false;
+    info.onclick=function(){
+      showingAll=!showingAll;
+      listEl.querySelectorAll('.status-same').forEach(function(el){
+        el.style.display=showingAll?'':'none';
+      });
+      info.textContent=showingAll?'Ukryj wpisy bez zmian ▴':'Pokaż też '+sameCount+' wpisów bez zmian ▾';
+    };
+    // Ukryj "bez zmian" na start
+    listEl.querySelectorAll('.status-same').forEach(function(el){
+      el.style.display='none';
+    });
+    listEl.appendChild(info);
+  }
 }
 function rmScan(i){scanR.splice(i,1);rScanR();}
 function editScan(i){oM(scanR[i],u=>{scanR[i]=u;rScanR();});}
 function saveAll(){
-  const evs=S.evs();
-  scanR.forEach(ev=>evs.push(ev));
-  S.save(evs);
-  scanR.forEach(ev=>schedN(ev));
-  toast('Zapisano '+scanR.length+' wpisów ✓');
+  var existing=S.evs();
+  var added=0,updated=0;
+  if(isUpdateMode){
+    scanR.forEach(function(ev){
+      if(ev._status==='same')return;
+      if(ev._status==='changed'){
+        // Zaktualizuj istniejący
+        var idx=existing.findIndex(function(e){
+          return e.date===ev.date && e.personId===ev.personId && e.type===ev.type;
+        });
+        if(idx>=0){existing[idx]=Object.assign({},existing[idx],{title:ev.title,time:ev.time,notes:ev.notes});updated++;}
+        else{existing.push(Object.assign({},ev,{id:String(Date.now()+Math.random())}));added++;}
+      } else {
+        // Nowy wpis
+        existing.push(Object.assign({},ev,{id:String(Date.now()+Math.random())}));
+        schedN(ev);
+        added++;
+      }
+    });
+    S.save(existing);
+    toast('Dodano '+added+', zaktualizowano '+updated+' wpisów ✓');
+  } else {
+    scanR.forEach(function(ev){existing.push(ev);});
+    S.save(existing);
+    scanR.forEach(function(ev){schedN(ev);});
+    toast('Zapisano '+scanR.length+' wpisów ✓');
+  }
   scanR=[];
   document.getElementById('res-sec').style.display='none';
   document.getElementById('img-wrap').style.display='none';
-  setTimeout(()=>go('cal'),700);
+  setTimeout(function(){go('cal');},700);
 }
 
 // ── KALENDARZ ──────────────────────────────────────────
