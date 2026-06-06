@@ -677,7 +677,20 @@ async function doAnalyze(){
       const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-opus-4-5',max_tokens:2000,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},{type:'text',text:buildPrompt(S.persons(),scanForPerson)}]}]})});
       const d=await resp.json();if(d.error)throw new Error(d.error.message);raw=d.content?.[0]?.text||'[]';
     }
-    scanR=JSON.parse(raw.replace(/```json|```/g,'').trim()).map((e,i)=>({...e,id:`sc_${Date.now()}_${i}`,reminders:S.cfg().defaultReminders||['30min'],personId:scanForPerson||null}));
+    const _parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    const _persons=S.persons();
+    scanR=_parsed.map((e,i)=>{
+      let personId=null;
+      if(scanForPerson==='auto'){
+        if(e.person&&_persons.length){
+          const pn=(e.person||'').toLowerCase().trim();
+          const m=_persons.find(p=>pn.includes(p.name.toLowerCase())||p.name.toLowerCase().includes(pn));
+          if(m)personId=m.id;
+        }
+      }else{personId=scanForPerson||null;}
+      const title=(!e.title||e.title==='null'||e.title===null)?'Wpis':String(e.title);
+      return {...e,title,id:'sc_'+Date.now()+'_'+i,reminders:S.cfg().defaultReminders||['30min'],personId};
+    });
     rScanR();
   }catch(e){toast('Błąd: '+e.message.slice(0,70));}
   btn.disabled=false;btn.innerHTML='<svg style="width:24px;height:24px;stroke:#fff;fill:none;stroke-width:2" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> Analizuj z AI';
