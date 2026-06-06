@@ -448,7 +448,7 @@ const S={
   save(e){localStorage.setItem('cal_v2',JSON.stringify(e))},
   cfg(){try{return JSON.parse(localStorage.getItem('cal_cfg')||'{}')}catch{return{}}},
   set(k,v){const c=this.cfg();c[k]=v;localStorage.setItem('cal_cfg',JSON.stringify(c))},
-  key(){return localStorage.getItem('ant_key')||''},
+  key(){return localStorage.getItem('ant_key')||localStorage.getItem('claude_key')||''},
   saveKey(k){localStorage.setItem('ant_key',k)},
   aiProv(){return localStorage.getItem('ai_prov')||'gemini'},
   setAIProv(v){localStorage.setItem('ai_prov',v)},
@@ -665,11 +665,18 @@ function buildPrompt(persons, mode){
 }
 async function doAnalyze(){
   if(!b64){toast('Najpierw wybierz zdjęcie');return;}
-  const key=S.key();if(!key){toast('Brak klucza API — przejdź do Ustawień');go('settings');return;}
+  const prov=S.aiProv();
+  const key=prov==='gemini'
+    ? (localStorage.getItem('gemini_key')||'')
+    : (localStorage.getItem('ant_key')||localStorage.getItem('claude_key')||'');
+  if(!key){
+    toast(prov==='gemini'?'Brak klucza Gemini — wklej w Ustawieniach':'Brak klucza Claude — wklej w Ustawieniach');
+    go('settings');return;
+  }
   const btn=document.getElementById('analyze-btn');
   btn.disabled=true;btn.innerHTML='<div class="spin"></div> Analizuję...';
   try{
-    const prov=S.aiProv();let raw;
+    let raw;
     if(prov==='gemini'){
       const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{inline_data:{mime_type:'image/jpeg',data:b64}},{text:buildPrompt(S.persons(),scanForPerson)}]}]})});
       const d=await resp.json();if(d.error)throw new Error(d.error.message);raw=d.candidates?.[0]?.content?.parts?.[0]?.text||'[]';
