@@ -355,7 +355,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <label class="fl">Dla kogo?</label><div class="chips" id="mpchips"></div>
   <label class="fl">Tytuł *</label><input class="fi" id="ft" placeholder="Nazwa...">
   <div class="r2">
-    <div><label class="fl">Data</label><input class="fi" id="fd" type="date"></div>
+    <div><label class="fl">Data początku</label><input class="fi" id="fd" type="date"></div>
+    <div><label class="fl">Data końca <span style="font-weight:400;font-size:0.82em;color:#888">(wielodniowe — opcjonalnie)</span></label><input class="fi" id="fd2" type="date"></div>
     <div><label class="fl">Godzina</label><input class="fi" id="fti" type="time"></div>
   </div>
   <label class="fl">Typ</label><div class="chips" id="tcs"></div>
@@ -738,7 +739,21 @@ function rCal(){
   const evs=filtEvs(),hols=showHols?getHols(y):[];
   const hSet=new Set(hols.map(h=>h.date));
   const ms=dateStr(y,mo+1,1),last=new Date(y,mo+1,0).getDate(),me=dateStr(y,mo+1,last);
-  const exp=evs.flatMap(ev=>ev.recurrence?expand(ev,ms,me):[ev]);
+  const exp=evs.flatMap(ev=>{
+    if(ev.recurrence)return expand(ev,ms,me);
+    if(ev.dateEnd&&ev.dateEnd>ev.date){
+      const days=[];let p=ev.date.split('-'),cy=+p[0],cm=+p[1],cd=+p[2];
+      for(let i=0;i<366;i++){
+        const ds=dateStr(cy,cm,cd);
+        if(ds>=ms&&ds<=me)days.push(Object.assign({},ev,{date:ds,id:ev.id+'_d'+i,isOcc:i>0,origId:ev.id,multiDay:true,multiIdx:i}));
+        if(ds>=ev.dateEnd||ds>me)break;
+        cd++;const dim=[0,31,(cy%4===0&&(cy%100!==0||cy%400===0))?29:28,31,30,31,30,31,31,30,31,30,31];
+        while(cd>dim[cm]){cd-=dim[cm];cm++;if(cm>12){cm=1;cy++;}}
+      }
+      return days;
+    }
+    return [ev];
+  });
   const byD={};exp.forEach(ev=>{if(ev.date)(byD[ev.date]||(byD[ev.date]=[])).push(ev);});
   hols.forEach(h=>(byD[h.date]||(byD[h.date]=[])).unshift({...h,id:'ph'+h.date,type:'publicHoliday'}));
   const today=localToday();
@@ -760,7 +775,12 @@ function rDE(){
   const p=selDay.split('-'),y=+p[0],mo=+p[1],d=+p[2],dow=new Date(y,mo-1,d).getDay();
   document.getElementById('dlbl').textContent=PLD[dow]+', '+d+' '+PLG[mo-1];
   const evs=filtEvs(),hols=showHols?getHols(y).filter(h=>h.date===selDay).map(h=>({...h,id:'ph'+h.date,type:'publicHoliday'})):[];
-  const dE=evs.flatMap(ev=>ev.recurrence?expand(ev,selDay,selDay):ev.date===selDay?[ev]:[]);
+  const dE=evs.flatMap(ev=>{
+    if(ev.recurrence)return expand(ev,selDay,selDay);
+    if(ev.date===selDay)return[ev];
+    if(ev.dateEnd&&ev.date<selDay&&ev.dateEnd>=selDay)return[Object.assign({},ev,{multiDay:true})];
+    return[];
+  });
   const all=[...hols,...dE];
   const con=document.getElementById('devs');con.innerHTML='';
   if(!all.length){con.innerHTML='<div class="empty" style="padding:24px 0">Brak wpisów na ten dzień</div>';return;}
@@ -799,8 +819,24 @@ function rAg(){
   const fbar=document.getElementById('fbar');fbar.innerHTML='';
   filters.forEach(f=>{const d=document.createElement('div');d.className='fc'+(agF===f.k?' on':'');d.textContent=f.l;d.addEventListener('click',()=>{agF=f.k;rAg();});fbar.appendChild(d);});
   const evs=filtEvs(),today=localToday();
-  const futD=new Date(new Date().getFullYear(),new Date().getMonth()+12,0);const fut=dateStr(futD.getFullYear(),futD.getMonth()+1,futD.getDate());
-  let exp=evs.flatMap(ev=>ev.recurrence?expand(ev,today,fut):[ev]);
+  const futD=new Date(new Date().getFullYear()+2,11,31);const fut=dateStr(futD.getFullYear(),futD.getMonth()+1,futD.getDate());
+  const past='2020-01-01';
+  let exp=evs.flatMap(ev=>{
+    if(ev.recurrence)return expand(ev,past,fut);
+    if(ev.dateEnd&&ev.dateEnd>ev.date){
+      // multi-day: generate one entry per day
+      const days=[];let p=ev.date.split('-'),cy=+p[0],cm=+p[1],cd=+p[2];
+      for(let i=0;i<366;i++){
+        const ds=dateStr(cy,cm,cd);
+        days.push(Object.assign({},ev,{date:ds,id:ev.id+'_d'+i,isOcc:i>0,origId:ev.id,multiDay:true,multiIdx:i}));
+        if(ds>=ev.dateEnd)break;
+        cd++;const dim=[0,31,(cy%4===0&&(cy%100!==0||cy%400===0))?29:28,31,30,31,30,31,31,30,31,30,31];
+        while(cd>dim[cm]){cd-=dim[cm];cm++;if(cm>12){cm=1;cy++;}}
+      }
+      return days;
+    }
+    return [ev];
+  });
   if(agF==='upcoming')exp=exp.filter(e=>e.date>=today);
   else if(agF!=='all')exp=exp.filter(e=>e.type===agF);
   exp.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
@@ -874,6 +910,7 @@ function oM(init,cb){
   });
   document.getElementById('ft').value=init&&init.title||'';
   document.getElementById('fd').value=init&&init.date||localToday();
+  document.getElementById('fd2').value=init&&init.dateEnd||'';
   document.getElementById('fti').value=init&&init.time||'09:00';
   document.getElementById('fn').value=init&&init.notes||'';
   document.getElementById('fr').value=init&&init.recurrence&&init.recurrence.type||'none';
@@ -889,7 +926,8 @@ function sM(){
   const rt=document.getElementById('fr').value;
   const pid=document.getElementById('mpchips').querySelector('.on')?.dataset.pid||null;
   cM();
-  if(mCB)mCB({id:String(Date.now()),title,type,personId:pid,date:document.getElementById('fd').value,time:document.getElementById('fti').value,notes:document.getElementById('fn').value||null,reminders:rems.length?rems:['30min'],recurrence:rt!=='none'?{type:rt,until:document.getElementById('fu').value||null}:null});
+  const _d2=document.getElementById('fd2').value;
+  if(mCB)mCB({id:String(Date.now()),title,type,personId:pid,date:document.getElementById('fd').value,dateEnd:(_d2&&_d2>document.getElementById('fd').value)?_d2:undefined,time:document.getElementById('fti').value,notes:document.getElementById('fn').value||null,reminders:rems.length?rems:['30min'],recurrence:rt!=='none'?{type:rt,until:document.getElementById('fu').value||null}:null});
 }
 
 // ═══════════════════════════════════════════════════════
