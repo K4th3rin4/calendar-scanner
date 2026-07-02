@@ -414,7 +414,7 @@ const S={
 // ZMIENNE GLOBALNE
 // ═══════════════════════════════════════════════════════
 let activePerson='all', curView='scan', editPid=null, selCol=PCOLS[0];
-let curMo=new Date(), selDay=new Date().toISOString().slice(0,10), showHols=true;
+let curMo=new Date(), selDay=localToday(), showHols=true;
 let agF='all', mCB=null;
 let b64='', scanR=[], scanFor='auto', isUpdateMode=false;
 
@@ -423,6 +423,7 @@ let b64='', scanR=[], scanFor='auto', isUpdateMode=false;
 // ═══════════════════════════════════════════════════════
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);}
 function dateStr(y,m,d){return y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');}
+function localToday(){const n=new Date();return dateStr(n.getFullYear(),n.getMonth()+1,n.getDate());}
 function addDays(y,m,d,days){const dt=new Date(y,m-1,d);dt.setDate(dt.getDate()+days);return{y:dt.getFullYear(),m:dt.getMonth()+1,d:dt.getDate()};}
 function getPerson(id){return S.persons().find(p=>p.id===id);}
 function pColor(id){const p=getPerson(id);return p?p.color:'#4A5FC1';}
@@ -740,7 +741,7 @@ function rCal(){
   const exp=evs.flatMap(ev=>ev.recurrence?expand(ev,ms,me):[ev]);
   const byD={};exp.forEach(ev=>{if(ev.date)(byD[ev.date]||(byD[ev.date]=[])).push(ev);});
   hols.forEach(h=>(byD[h.date]||(byD[h.date]=[])).unshift({...h,id:'ph'+h.date,type:'publicHoliday'}));
-  const today=new Date().toISOString().slice(0,10);
+  const today=localToday();
   const first=(new Date(y,mo,1).getDay()+6)%7;
   const g=document.getElementById('calgrid');g.innerHTML='';
   for(let i=0;i<first;i++){const el=document.createElement('div');el.className='cd';g.appendChild(el);}
@@ -797,8 +798,8 @@ function rAg(){
   const filters=[{k:'all',l:'Wszystko'},{k:'upcoming',l:'Nadchodzące'},{k:'task',l:'Zadania'},{k:'holiday',l:'Urlopy'},{k:'work',l:'Praca'},{k:'reminder',l:'Przypomnienia'}];
   const fbar=document.getElementById('fbar');fbar.innerHTML='';
   filters.forEach(f=>{const d=document.createElement('div');d.className='fc'+(agF===f.k?' on':'');d.textContent=f.l;d.addEventListener('click',()=>{agF=f.k;rAg();});fbar.appendChild(d);});
-  const evs=filtEvs(),today=new Date().toISOString().slice(0,10);
-  const fut=new Date(new Date().getFullYear(),new Date().getMonth()+12,0).toISOString().slice(0,10);
+  const evs=filtEvs(),today=localToday();
+  const futD=new Date(new Date().getFullYear(),new Date().getMonth()+12,0);const fut=dateStr(futD.getFullYear(),futD.getMonth()+1,futD.getDate());
   let exp=evs.flatMap(ev=>ev.recurrence?expand(ev,today,fut):[ev]);
   if(agF==='upcoming')exp=exp.filter(e=>e.date>=today);
   else if(agF!=='all')exp=exp.filter(e=>e.type===agF);
@@ -872,7 +873,7 @@ function oM(init,cb){
     rc.appendChild(d);
   });
   document.getElementById('ft').value=init&&init.title||'';
-  document.getElementById('fd').value=init&&init.date||new Date().toISOString().slice(0,10);
+  document.getElementById('fd').value=init&&init.date||localToday();
   document.getElementById('fti').value=init&&init.time||'09:00';
   document.getElementById('fn').value=init&&init.notes||'';
   document.getElementById('fr').value=init&&init.recurrence&&init.recurrence.type||'none';
